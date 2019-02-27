@@ -1,0 +1,12 @@
+<div id="inline-vote-form">
+    <div>
+        <input id="voteId" name="voteId" type="hidden" value="" />
+        <ul>
+            <% for (var i = 0; i < options.length; i++) { %>
+                    <% for (var j = 0; j < options[i].length; j++) { %>
+                            <li class="inline-vote-option"><button class="inline-vote-option-button" click="vote(<%- options[i][j] %>)" name="option" value="<%- options[i][j] %>"><%- options[i][j] %></button></li>
+                    <% } %>
+            <% } %>
+        </ul>
+    </div>
+</div>

@@ -1,0 +1,13 @@
+#inline-vote-form {
+    width:auto;
+    height: auto;
+    position: relative;
+    margin-top: 40px;
+    z-index: 1;
+    background-color: #ccc;
+    display: none;
+}
+
+#innerdocbody .vote {
+    background-color: #000;
+}
