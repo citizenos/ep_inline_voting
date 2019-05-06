@@ -2,6 +2,7 @@
 
 var eejs = require('ep_etherpad-lite/node/eejs/');
 var settings = require('ep_etherpad-lite/node/utils/Settings');
+var formidable = require('formidable');
 var voteManager = require('./voteManager');
 var votes = require('./votes');
 var apiUtils = require('./apiUtils');
@@ -42,7 +43,31 @@ exports.socketio = function (hook_name, args, cb){
   .of('/vote')
   .on('connection', function (socket) {
 
-    // Join the rooms
+    socket.on('startVote', function (data, callback) {
+      voteManager.startVote(data.padId, data, function (err, result) {
+        if (err) console.error('Error', err);
+        callback(null, result);
+      });
+    });
+
+    socket.on('getVoteSettings', function (data, callback) {
+      var padId = data.padId;
+      var voteId = data.voteId;
+      voteManager.getVote(padId, voteId, function (err, data) {
+        if (err) console.error('Error', err);
+        callback(null, data);
+      });
+    });
+
+    socket.on('getVoteResult', function (data, callback) {
+      var padId = data.padId;
+      socket.join(padId);
+      voteManager.getVoteResult(padId, data.voteId, function (err, result){
+        if(err) console.error(err);
+        callback(err, result);
+      });
+    });
+
     socket.on('getVotes', function (data, callback) {
       var padId = data.padId;
       socket.join(padId);
@@ -55,13 +80,13 @@ exports.socketio = function (hook_name, args, cb){
     socket.on('addVote', function (data, callback) {
       var padId = data.padId;
       var content = data;
-      voteManager.addVote(padId, content, function (err, voteId, vote){
-        socket.broadcast.to(padId).emit('pushAddVote', voteId, vote);
-        callback(voteId, vote);
+      voteManager.addVote(padId, content, function (err, votes){
+        socket.broadcast.to(padId).emit('pushAddVote', votes);
+        callback(err, votes);
       });
     });
 
-    // comment added via API
+    // vote added via API
     socket.on('apiAddVotes', function (data) {
       var padId = data.padId;
       var voteIds = data.voteIds;
@@ -70,6 +95,16 @@ exports.socketio = function (hook_name, args, cb){
       for (var i = 0, len = voteIds.length; i < len; i++) {
         socket.broadcast.to(padId).emit('pushAddVote', voteIds[i], votes[i]);
       }
+    });
+
+    socket.on('updateVoteSettings', function (data, callback) {
+      var padId = data.padId;
+      var voteId = data.voteId;
+      var settings = data.settings;
+      voteManager.updateVoteSettings(padId, voteId, settings, function (err, vote) {
+        if (err) console.error('Error', err);
+        callback(err, vote);
+      });
     });
 
   });
@@ -93,7 +128,8 @@ exports.expressCreateServer = function (hook_name, args, callback) {
     });
   });
 
-  args.app.post('/p/:pad/:rev?/votes', function(req, res) {
+  args.app.post('/p/:pad/:rev?/votes/:voteId?', function(req, res) {
+    
     new formidable.IncomingForm().parse(req, function (err, fields, files) {
       // check the api key
       if(!apiUtils.validateApiKey(fields, res)) return;
@@ -104,20 +140,12 @@ exports.expressCreateServer = function (hook_name, args, callback) {
       // sanitize pad id before continuing
       var padIdReceived = apiUtils.sanitizePadId(req);
 
-      // create data to hold comment information:
-      try {
-        var data = JSON.parse(fields.data);
-
-        votes.bulkAddPadVotes(padIdReceived, data, function(err, voteIds, votes) {
-          if(err) {
-            res.json({code: 2, message: "internal error", data: null});
-          } else {
-            broadcastVotesAdded(padIdReceived, voteIds, votes);
-            res.json({code: 0, voteIds: voteIds});
-          }
+      if (!req.params.voteId && fields.data.status === 'close') {
+        voteManager.closePadVotes(padIdReceived, function (err, res) {
+          if (err) res.json({error: err});
+          console.log(err, res);
+          res.json({done: res});
         });
-      } catch(e) {
-        res.json({code: 1, message: "data must be a JSON", data: null});
       }
     });
   });

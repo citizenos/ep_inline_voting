@@ -1,12 +1,57 @@
+<div id="inline-vote-settings">
+    <div id="settings-content">
+        <div id="vote-title-wrap"><label for="vote-title" data-l10n-id="ep_inline_voting.vote_title_label">Insert vote description</label><textarea id="vote-title" name="vote-title"></textarea></div>
+        <div id="vote-options-wrap">
+            <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-1" name="vote-option-1"/></div>
+            <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-2" name="vote-option-2"/></div>
+        </div>
+        <div id="vote-settings-options-wrapper">
+            <div class="option-wrap">
+                <label for="replace">
+                    <span data-l10n-id="ep_inline_voting.settings_replace">Replace selection with vote result value</span>
+                    <input id="vote_settings_replace" type="checkbox" name="replace" value="replace">
+                </label>
+            </div>
+            <!--div class="option-wrap">
+                <label for="set_deadline">
+                    <span data-l10n-id="ep_inline_voting.settings_set_deadline">Set deadline</span>
+                    <input id="vote_settings_set_deadline" type="checkbox" name="set_deadline" value="set_deadline">
+                </label>
+            </div-->
+        </div>
+        <div id="vote-settings-buttons-wrap">
+            <div class="vote-settings-button">
+                <button id="add-option-vote" data-l10n-id="ep_inline_voting.add_option">Add Option</button>
+            </div>
+            <div class="vote-settings-button">
+                <button id="start-vote" data-l10n-id="ep_inline_voting.start_vote">Start Vote</button>
+            </div>
+            <div class="vote-settings-button">
+                <button id="cancel-vote" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Form with options-->
 <div id="inline-vote-form">
     <div>
-        <input id="voteId" name="voteId" type="hidden" value="" />
-        <ul>
+        <ul id="vote-options-list">
             <% for (var i = 0; i < options.length; i++) { %>
                     <% for (var j = 0; j < options[i].length; j++) { %>
                             <li class="inline-vote-option"><button class="inline-vote-option-button" click="vote(<%- options[i][j] %>)" name="option" value="<%- options[i][j] %>"><%- options[i][j] %></button></li>
                     <% } %>
             <% } %>
         </ul>
+    </div>
+</div>
+
+<!--Vote results-->
+<div id="inline-vote-results">
+    <div>
+        <ul id="vote-result-options-list">
+        </ul>
+    </div>
+    <div id="vote-result-buttons">
+        <button id="close-vote">Close vote</button>
     </div>
 </div>

@@ -4,10 +4,40 @@
     position: relative;
     margin-top: 40px;
     z-index: 1;
-    background-color: #ccc;
+    background-color: #c6c6c6;
+    color:#666;
     display: none;
 }
 
-#innerdocbody .vote {
-    background-color: #000;
+#inline-vote-settings, #inline-vote-results  {
+    display: none;
+    z-index: 2;
+    margin-top: 80px;
+    background-color: #c6c6c6;
+    color:#666;
+    position: relative;
+    width: auto;
+    height: auto;
+    padding: 10px;
 }
+
+#inline-vote-settings #settings-content {
+    padding: 10px;
+}
+#vote-title-wrap {
+
+}
+#vote-title {
+    padding: 2px;
+}
+#vote-options-wrap {}
+
+#vote-options-wrap .option-wrap {}
+            
+#vote-settings-buttons-wrap {
+    display: inline-block;
+}
+#vote-settings-buttons-wrap .vote-settings-button {}
+
+
+            
