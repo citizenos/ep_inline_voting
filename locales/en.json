@@ -1,3 +1,4 @@
 {
-    "ep_inline_vote.create_vote": "Create vote"
+    "ep_inline_vote.create_vote": "Create vote",
+    "ep_inline_voting.vote_title_label": "Add an optional vote description"
 }

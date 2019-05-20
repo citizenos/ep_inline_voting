@@ -6,19 +6,20 @@ var url = loc.protocol + "//" + loc.hostname + ":" + port + "/" + "vote";
 var socket     = io.connect(url);
 var cssFiles = ['ep_inline_voting/static/css/vote.css'];
 
-var buildVote = function(voteId, option) {
+var buildUserVote = function(voteId, option) {
     var vote = {};
   
     vote.voteId = voteId;
     vote.value = option;
     vote.padId = clientVars.padId;
     vote.author = clientVars.userId;
+    vote.createdAt = new Date().getTime();
   
     return vote;
   }
 
 var vote = function (voteId, option) {
-    var vote = buildVote(voteId, option);
+    var vote = buildUserVote(voteId, option);
     socket.emit('addVote', vote, function (err, vote){
         $('#inline-vote-form').hide();
         getVoteResult(voteId);
@@ -44,9 +45,7 @@ var getVoteResult = function (voteId) {
         $.each(result, function (key, item) {
             resHtml +='<li><span>' + key + '</span> <span> ' + item.length + ' </span></li>';
         });
-        $('button#close-vote').on('click', function () {
-            handleVoteClose(voteId);
-        });
+        
         $('#vote-result-options-list').html(resHtml);
         $('#inline-vote-results').show();
     });
@@ -58,19 +57,85 @@ var addVoteClickListeners = function () {
         $(elem).off();
         $(elem).on('click', function (e) {
             var voteId = e.target.classList.value.match(/(vote-[0-9]+)=?/g)[0];
+            var closed = /voteClosed=?/g.test(e.target.classList.value);
+            console.log('CLOSED', closed);
+            $('#close-vote').off();
+            $('#close-vote').on('click', function () {
+                handleVoteClose(voteId);
+            });
             if (voteId) {
-                socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, data){
+                socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
                     if (err) return console.error(err);
-                    var itemHtml = '';
-                    _.each(data.options, function (option) {
-                        itemHtml += '<li class="inline-vote-option"><button class="inline-vote-option-button" name="option" value="'+option+'">'+option+'</button></li>'
+                    
+                    socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, voteResult) {
+                        console.log(voteSettings, voteResult);
+                        closed = voteSettings.closed;
+                        var totalVotes = 0;
+                        if (voteResult) {
+                            $.each(voteResult, function(k, i) {
+                                if (i) {
+                                    totalVotes += i.length
+                                }
+                            });
+                        }
+                        
+                        var authors = clientVars.collab_client_vars.historicalAuthorData;
+                        console.log(voteResult);
+                        for (var authorId in authors) {
+                            if (authors.hasOwnProperty(authorId) && authors[voteSettings.author]) {
+                                var author = authors[voteSettings.author];
+                                $('#creator-name').html(author.name);
+                                break;
+                            }
+                        }
+                        var createTime = new Date(voteSettings.createdAt);
+                        var datetext = createTime.getDate()+'/'+createTime.getMonth()+'/'+createTime.getFullYear()+' '+createTime.getHours()+':'+createTime.getMinutes();
+                        console.log(datetext);
+                        $('#create-time').html(datetext);
+                        $('#description-content').html(voteSettings.description);
+                        var itemHtml = '';
+                        _.each(voteSettings.options, function (option) {
+                            var vcount = 0;
+                            var userVote = false;
+                            if (voteResult && voteResult[option]) {
+                                vcount = voteResult[option].length;
+                                voteResult[option].filter(function (voter) {
+                                    if (voter.author == clientVars.userId) {
+                                        userVote = true;
+                                    }
+                                })
+                            }
+                            
+                        //  itemHtml += '<li class="inline-vote-option"><button class="inline-vote-option-button" name="option" value="'+option+'">'+option+'</button></li>'
+                            itemHtml += '<div class="option-wrap"> \
+                                <div class="option-result-bar-wrap"> \
+                                    <label class="container"> \
+                                        <input class="vote-option-radio" type="radio" name="option" value="'+option+'" '+ ((userVote)? 'checked' :'') +' /> \
+                                        <span class="checkmark"></span> \
+                                        <div class="option-result-bar"> \
+                                            <div class="option-result-fill" style="width:' + ((vcount/totalVotes * 100) || 1) + ((vcount/totalVotes)? '%': 'px') + ';"> \
+                                                <div class="option-result-votes">' + (vcount || 0 )+  '</div> \
+                                            </div> \
+                                        </div> \
+                                    </label> \
+                                <div class="option-value">'+option+'</div> \
+                                </div> \
+                            </div>'
+                        });
+                        $('#vote-options-list').html(itemHtml);
+                        $('.option-wrap').off();
+                        if (!closed) {
+                            $('#vote-settings-buttons-wrap').show();
+                            $('.option-wrap').on('click', function (e) {
+                                vote(voteId, $(this).find('input')[0].value);
+                            });
+                        }
+                        
+                        $('#inline-vote-form').show();
+                        if (closed){
+                            $('#inline-vote-form').find('#vote-settings-buttons-wrap').hide();
+                        }
                     });
-                    $('#vote-options-list').html(itemHtml);
-                    $('.inline-vote-option').on('click', function (e) {
-                        vote(voteId, $(this).find('button')[0].value);
-                    });
-
-                    $('#inline-vote-form').show();
                 });
             }
             
@@ -78,7 +143,25 @@ var addVoteClickListeners = function () {
     });
 };
 
+var closeVote  = function (padId, voteId) {
+    var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
+    var self = this;
+    var editorInfo = self.editorInfo;
+
+    socket.emit('updateVoteSettings', {padId, voteId, settings: {closed: true}}, function () {
+        console.log('VOte closed');
+        var rep = editorInfo.ace_getRepFromSelector('.'+voteId, padInner);
+        console.log(rep);
+        self.editorInfo.ace_callWithAce(function (ace){
+            ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
+            ace.ace_setAttributeOnSelection('voteClosed', true);
+            $('#inline-vote-settings').hide();
+        },'closeVote', true);
+    });
+};
+
 var handleVoteClose = function (voteId) {
+    console.log('HANDLE VOTE CLOSE')
     var editorInfo = this.editorInfo;
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteData) {
         if (err) return console.error(err);
@@ -100,8 +183,15 @@ var handleVoteClose = function (voteId) {
             if (!winner) {
                 return;
             }
-            if (voteData.settings && voteData.settings.replace) {
-                
+
+            $("#root_lightbox").show();
+            $("#vote_button_keep").on('click', function () {
+                closeVote(clientVars.padId, voteId);
+                $("#root_lightbox").hide();
+                $("#inline-vote-form").hide();
+            });
+
+            $("#vote_button_replace").on('click', function () {                
                 var padOuter = $('iframe[name="ace_outer"]').contents();
                 var padInner = padOuter.find('iframe[name="ace_inner"]');
 
@@ -109,7 +199,10 @@ var handleVoteClose = function (voteId) {
                 winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
 
                 $(padVoteContent).html(winner);
-            }
+                $("#root_lightbox").hide();
+                $("#inline-vote-form").hide();
+                closeVote(clientVars.padId, voteId);
+            });
         });
     });
 };
@@ -142,13 +235,6 @@ var getSelectedText = function(rep) {
     var selectedText = "";
   
     _(_.range(firstLine, lastLine + 1)).each(function(lineNumber){
-       // rep looks like -- starts at line 2, character 1, ends at line 4 char 1
-       /*
-       {
-          rep.selStart[2,0],
-          rep.selEnd[4,2]
-       }
-       */
        var line = rep.lines.atIndex(lineNumber);
        // If we span over multiple lines
        if(rep.selStart[0] === lineNumber){
@@ -189,27 +275,24 @@ var createVote = function() {
     
     $('#inline-vote-settings').show();
     $('#vote-option-1').val(defaultOptionText);
+    var description = $('#vote-description').val();
     $('#start-vote').on('click', function () {
         var options = [];
-        var settings = {
-            replace: false
-        };
         $('.vote-option-input').each(function (key, item) {
             if (item.value) {
                 options.push(item.value);
             }
         });
-        if ($('#vote_settings_replace').is(':checked')) {
-            settings.replace = true;
-        }
-        var voteId = 'vote-' + now;
+        var voteId = 'vote-' + now; //Get more uniqueID
         var voteData = {
             voteId,
+            createdAt: now,
+            description,
             options,
+            selectedText: defaultOptionText,
             padId: clientVars.padId,
             author: clientVars.userId,
-            closed: false,
-            settings
+            closed: false
         };
 
         if (options.length) {
@@ -239,23 +322,43 @@ var getVotes = function (callback){
 
 exports.aceInitialized = function(hook, context){
     createVote = _(createVote).bind(context);
+    closeVote = _(closeVote).bind(context);
     handleVoteClose = _(handleVoteClose).bind(context);
+    
     $('#inline-vote-form').off('submit');
 
     $('#cancel-vote').on('click', function () {
         $('#inline-vote-settings').hide();
     });
 
-    $('#add-option-vote').on('click', function () {
+    $('.close-inline-vote-modal').on('click', function (e) {
+        console.log(this);
+        $(e.target).parent().hide();
+    });
+    
+    $('#inline-vote-add-option').on('click', function () {
         if ($('#vote-options-wrap .vote-option-input').length < 5) {
             var itemIndex =$('#vote-options-wrap .vote-option-input').length + 1;
-            var optionInput = '<div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-' + itemIndex + '" name="vote-option-' + itemIndex + '"/></div>';
-            $('#vote-options-wrap').append(optionInput);
+            var optionInput = '<div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-' + itemIndex + '" name="vote-option-' + itemIndex + '"/><div class="remove-vote-option"></div></div>';
+            $('#vote-options-wrap').find(".option-wrap:last-child").before(optionInput);
+            $('.remove-vote-option').off();
+            $('.remove-vote-option').on('click', function () {
+                if ($('.remove-vote-option').length > 2) {
+                    $(this).parent().remove();
+                } else  {
+                    $(this).parent().find('input').val('');
+                }
+                
+            });
         }
     });
-
-    getVotes(function (data) {
-        console.log('VOtes', data);
+    $('.remove-vote-option').on('click', function () {
+        if ($('.remove-vote-option').length > 2) {
+            $(this).parent().remove();
+        } else  {
+            $(this).parent().find('input').val('');
+        }
+        
     });
 }
 

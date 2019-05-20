@@ -43,12 +43,10 @@ var updateVoteSettings = function (padId, voteId, settings, callback) {
     if (err) return callback(err);
     if (!vote) return callback("No vote found at: 'votes:" + padId + ":" + voteId);
     var allowedFields = ['replace', 'closed'];
+    console.log(vote)
+    console.log('settings', settings);
     allowedFields.forEach(function (field) {
-      if (field === 'replace')  {
-        vote.settings.replace = settings.replace;
-      } else {
         vote[field] = settings[field];
-      }
     });
     
     db.set("votes:" + padId + ":" + voteId, vote);

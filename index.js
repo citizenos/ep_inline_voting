@@ -114,7 +114,7 @@ exports.expressCreateServer = function (hook_name, args, callback) {
   args.app.get('/p/:pad/:rev?/votes', function(req, res) {
     var fields = req.query;
     // check the api key
-    if(!apiUtils.validateApiKey(fields, res)) return;
+  //  if(!apiUtils.validateApiKey(fields, res)) return;
 
     // sanitize pad id before continuing
     var padIdReceived = apiUtils.sanitizePadId(req);
@@ -123,7 +123,7 @@ exports.expressCreateServer = function (hook_name, args, callback) {
       if(err) {
         res.json({code: 2, message: "internal error", data: null});
       } else {
-        res.json({code: 0, data: data});
+        res.json({code: 0, data:data});
       }
     });
   });
