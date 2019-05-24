@@ -3,7 +3,7 @@ var db = require('ep_etherpad-lite/node/db/DB').db;
 var ERR = require("ep_etherpad-lite/node_modules/async-stacktrace");
 var randomString = require('ep_etherpad-lite/static/js/pad_utils').randomString;
 var readOnlyManager = require("ep_etherpad-lite/node/db/ReadOnlyManager.js");
-var shared = require('./static/js/shared');
+
 //Get Vote settings
 var getVote = function (padId, voteId, callback) {
   db.get("votes:" + padId + ":" + voteId, function (err, vote) {
@@ -16,6 +16,25 @@ var getVoteResult = function (padId, voteId, callback) {
     if(ERR(err, callback)) callback(err);
     
     callback(null, result);
+  });
+};
+
+var getVoteCount = function (padId, voteId, authorID, callback) {
+  var count = 0;
+  var returndata = {count:0};
+  getVoteResult(padId, voteId, function (err, result) {
+    if (err) return callback(err);
+
+    _.each(Object.keys(result), function (opt) {
+      _.each(result[opt], function (vote) {
+        if (vote.author === authorID) {
+          returndata.userOption = opt;
+        }
+      });
+      returndata.count += result[opt].length;
+    });
+
+    return callback(null, returndata);
   });
 };
 
@@ -43,8 +62,6 @@ var updateVoteSettings = function (padId, voteId, settings, callback) {
     if (err) return callback(err);
     if (!vote) return callback("No vote found at: 'votes:" + padId + ":" + voteId);
     var allowedFields = ['replace', 'closed'];
-    console.log(vote)
-    console.log('settings', settings);
     allowedFields.forEach(function (field) {
         vote[field] = settings[field];
     });
@@ -174,5 +191,6 @@ exports.closePadVotes = function (padId, callback) {
 
 exports.getVotes = getVotes;
 exports.getVoteResult = getVoteResult;
+exports.getVoteCount = getVoteCount;
 exports.updateVoteSettings = updateVoteSettings;
 

@@ -83,7 +83,7 @@
     background-color: #FFFFFF;
     opacity: 0.7;
     color: #252525;
-    font-family: "Lucida Grande";
+    font-family: "Open Sans";
     font-size: 13px;
     line-height: 20px;
     padding: 5px;
@@ -308,6 +308,16 @@
     line-height: 15px;
 }
 
+.option-value-active {
+    display: inline-block;
+    margin-top: -20px;
+    position: relative;
+    top: -22px;
+    left: 30px;
+    font-family: "Open Sans";
+    font-size: 13px;
+    line-height: 15px;
+}
 
 .lightest_line {
     background: #e5e5e5

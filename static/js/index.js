@@ -6,6 +6,55 @@ var url = loc.protocol + "//" + loc.hostname + ":" + port + "/" + "vote";
 var socket     = io.connect(url);
 var cssFiles = ['ep_inline_voting/static/css/vote.css'];
 
+var lastLineSelectedIsEmpty = function(rep, lastLineSelected) {
+    var line = rep.lines.atIndex(lastLineSelected);
+    // when we've a line with line attribute, the first char line position
+    // in a line is 1 because of the *, otherwise is 0
+    var firstCharLinePosition = (line.lineMarker === 1) ? 1 : 0;
+    var lastColumnSelected = rep.selEnd[1];
+  
+    return lastColumnSelected === firstCharLinePosition;
+}
+
+var getLastLine = function(rep) {
+    var firstLine = rep.selStart[0];
+    var lastLineSelected = rep.selEnd[0];
+  
+    if (lastLineSelected > firstLine){
+      // Ignore last line if the selected text of it it is empty
+      if(lastLineSelectedIsEmpty(rep, lastLineSelected)){
+        lastLineSelected--;
+      }
+    }
+    return lastLineSelected;
+}
+
+function getYOffsetOfRep(rep){
+    var padOuter = $('iframe[name="ace_outer"]');
+    var padInner = padOuter.contents().find('iframe[name="ace_inner"]');
+    var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
+    
+    // Get the target Line
+    var index = getLastLine(rep);
+    var line = rep.lines.atIndex(index);
+    var divEl = $(line.lineNode);
+  
+    // Is the line visible yet?
+    if ( divEl.length !== 0 ) {
+      var top = divEl.offset().top + divEl.height() + topCorrection; // A standard generic offset
+     
+      return top;
+    }
+  }
+  
+var drawAt = function (element, topOffset){
+    element.show();
+    element.css({
+      "position": "absolute",
+      "top": topOffset 
+    });
+}
+
 var buildUserVote = function(voteId, option) {
     var vote = {};
   
@@ -21,9 +70,10 @@ var buildUserVote = function(voteId, option) {
 var vote = function (voteId, option) {
     var vote = buildUserVote(voteId, option);
     socket.emit('addVote', vote, function (err, vote){
-        $('#inline-vote-form').hide();
-        getVoteResult(voteId);
+      //  getVoteResult(voteId);
+      getVoteCount(voteId);
     });
+
     return false;
 }
 
@@ -38,27 +88,133 @@ exports.postToolbarInit = function (hookName, args) {
       addVoteClickListeners();
     });
 };
-var getVoteResult = function (voteId) {
-    socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
-        if (err) console.error(err)
-        var resHtml = '';
-        $.each(result, function (key, item) {
-            resHtml +='<li><span>' + key + '</span> <span> ' + item.length + ' </span></li>';
+
+var getVoteCount = function (voteId) {
+    var padOuter = $('iframe[name="ace_outer"]');
+    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
+
+    socket.emit('getVoteSettings', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, voteSettings) {
+        socket.emit('getVoteCount', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, result) {
+            console.log('VOTE COUNT', result);
+            var countHTML = html10n.get('ep_inline_voting.total_votes', {'count': result.count});
+            $('#vote-count').html(countHTML);
+            var itemHtml = "";
+            _.each(voteSettings.options, function (option) {
+                var userVote = false;
+                if (result.userOption && result.userOption === option) {
+                    userVote = true;
+                }
+                var barLength = 0;
+                var resultText = option;
+                var valueText = "";
+                var resultVotes = "";
+                
+                itemHtml += '<div class="option-wrap"> \
+                    <div class="option-result-bar-wrap"> \
+                        <label class="container"> \
+                            <input class="vote-option-radio" type="radio" name="option" value="'+option+'" '+ ((userVote)? 'checked' :'') +' /> \
+                            <span class="checkmark"></span> \
+                            <div class="option-result-bar"> \
+                                <div class="option-result-fill" style="width:' + barLength + ';"> \
+                                    <div class="option-result-votes">' +resultVotes+  '</div> \
+                                </div> \
+                            </div> \
+                            <div class="option-value-active">'+resultText+'</div> \
+                        </label> \
+                    </div> \
+                </div>'
+            });
+
+            $('#vote-options-list').html(itemHtml);
+
+            $('#inline-vote-form .option-wrap').off();
+            $('#inline-vote-form .option-wrap').on('click', function (e) {
+                vote(voteId, $(this).find('input')[0].value);
+            });
+
+            var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
+            var h = padInner.contents().find('.'+voteId).height();
+            var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
+            drawAt($('#inline-vote-form'), Y);
         });
+    });
+};
+
+var getVoteResult = function (voteId) {
+    var padOuter = $('iframe[name="ace_outer"]');
+    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
+
+    socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
+        if (err) return console.error(err);
         
-        $('#vote-result-options-list').html(resHtml);
-        $('#inline-vote-results').show();
+        socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
+            if (err) console.error(err)
+            var itemHtml = '';
+            var totalVotes = 0;
+            
+            $.each(Object.keys(result), function (key, item) {
+                totalVotes += result[item].length;
+            });
+
+            $.each(Object.keys(result), function (key, item) {
+                var vcount = 0;
+                var userVote = false;
+                if (result && result[item]) {
+                    vcount = result[item].length;
+                    result[item].filter(function (voter) {
+                        if (voter.author == clientVars.userId) {
+                            userVote = true;
+                        }
+                    })
+                }
+                var barLength = 0;
+                var resultText = item;
+                var valueText = "";
+                if (voteSettings && voteSettings.closed) {
+                    barLength = ((vcount/totalVotes * 100) || 1) + ((vcount/totalVotes)? '%': 'px');
+                    resultText = (vcount || 0 );
+                    valueText = item;
+                }
+                
+                itemHtml += '<div class="option-wrap"> \
+                    <div class="option-result-bar-wrap"> \
+                        <label class="container"> \
+                            <input class="vote-option-radio" type="radio" name="option" value="'+item+'" '+ ((userVote)? 'checked' :'') +' /> \
+                            <span class="checkmark"></span> \
+                            <div class="option-result-bar"> \
+                                <div class="option-result-fill" style="width:' + barLength + ';"> \
+                                    <div class="option-result-votes">' +resultText+  '</div> \
+                                </div> \
+                            </div> \
+                        </label> \
+                        <div class="option-value">'+valueText+'</div> \
+                    </div> \
+                </div>'
+            });
+            
+            $('#vote-options-list').html(itemHtml);
+
+            $('#inline-vote-form .option-wrap').off();
+            $('#inline-vote-form .option-wrap').on('click', function (e) {
+                vote(voteId, $(this).find('input')[0].value);
+            });
+            
+            var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
+            var h = padInner.contents().find('.'+voteId).height();
+            var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
+            drawAt($('#inline-vote-form'), Y);
+        });
     });
 };
 
 var addVoteClickListeners = function () {
-    var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
-    $(padInner[0]).find('.vote').each(function (key, elem) {
+    var padOuter = $('iframe[name="ace_outer"]');
+    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
+    $(padInner).contents().find('.vote').each(function (key, elem) {
         $(elem).off();
         $(elem).on('click', function (e) {
             var voteId = e.target.classList.value.match(/(vote-[0-9]+)=?/g)[0];
             var closed = /voteClosed=?/g.test(e.target.classList.value);
-            console.log('CLOSED', closed);
             $('#close-vote').off();
             $('#close-vote').on('click', function () {
                 handleVoteClose(voteId);
@@ -67,75 +223,12 @@ var addVoteClickListeners = function () {
                 socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
                     if (err) return console.error(err);
                     
-                    socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, voteResult) {
-                        console.log(voteSettings, voteResult);
-                        closed = voteSettings.closed;
-                        var totalVotes = 0;
-                        if (voteResult) {
-                            $.each(voteResult, function(k, i) {
-                                if (i) {
-                                    totalVotes += i.length
-                                }
-                            });
-                        }
+                    if (voteSettings.closed) {
+                        getVoteResult(voteId);
                         
-                        var authors = clientVars.collab_client_vars.historicalAuthorData;
-                        console.log(voteResult);
-                        for (var authorId in authors) {
-                            if (authors.hasOwnProperty(authorId) && authors[voteSettings.author]) {
-                                var author = authors[voteSettings.author];
-                                $('#creator-name').html(author.name);
-                                break;
-                            }
-                        }
-                        var createTime = new Date(voteSettings.createdAt);
-                        var datetext = createTime.getDate()+'/'+createTime.getMonth()+'/'+createTime.getFullYear()+' '+createTime.getHours()+':'+createTime.getMinutes();
-                        console.log(datetext);
-                        $('#create-time').html(datetext);
-                        $('#description-content').html(voteSettings.description);
-                        var itemHtml = '';
-                        _.each(voteSettings.options, function (option) {
-                            var vcount = 0;
-                            var userVote = false;
-                            if (voteResult && voteResult[option]) {
-                                vcount = voteResult[option].length;
-                                voteResult[option].filter(function (voter) {
-                                    if (voter.author == clientVars.userId) {
-                                        userVote = true;
-                                    }
-                                })
-                            }
-                            
-                        //  itemHtml += '<li class="inline-vote-option"><button class="inline-vote-option-button" name="option" value="'+option+'">'+option+'</button></li>'
-                            itemHtml += '<div class="option-wrap"> \
-                                <div class="option-result-bar-wrap"> \
-                                    <label class="container"> \
-                                        <input class="vote-option-radio" type="radio" name="option" value="'+option+'" '+ ((userVote)? 'checked' :'') +' /> \
-                                        <span class="checkmark"></span> \
-                                        <div class="option-result-bar"> \
-                                            <div class="option-result-fill" style="width:' + ((vcount/totalVotes * 100) || 1) + ((vcount/totalVotes)? '%': 'px') + ';"> \
-                                                <div class="option-result-votes">' + (vcount || 0 )+  '</div> \
-                                            </div> \
-                                        </div> \
-                                    </label> \
-                                <div class="option-value">'+option+'</div> \
-                                </div> \
-                            </div>'
-                        });
-                        $('#vote-options-list').html(itemHtml);
-                        $('.option-wrap').off();
-                        if (!closed) {
-                            $('#vote-settings-buttons-wrap').show();
-                            $('.option-wrap').on('click', function (e) {
-                                vote(voteId, $(this).find('input')[0].value);
-                            });
-                        }
-                        
-                        $('#inline-vote-form').show();
-                        if (closed){
-                            $('#inline-vote-form').find('#vote-settings-buttons-wrap').hide();
-                        }
-                    });
+                    } else  {
+                        getVoteCount(voteId);
+                    }
                 });
             }
             
@@ -149,20 +242,17 @@ var closeVote  = function (padId, voteId) {
     var editorInfo = self.editorInfo;
 
     socket.emit('updateVoteSettings', {padId, voteId, settings: {closed: true}}, function () {
-        console.log('VOte closed');
         var rep = editorInfo.ace_getRepFromSelector('.'+voteId, padInner);
-        console.log(rep);
         self.editorInfo.ace_callWithAce(function (ace){
             ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
             ace.ace_setAttributeOnSelection('voteClosed', true);
             $('#inline-vote-settings').hide();
+            addVoteClickListeners();
         },'closeVote', true);
     });
 };
 
 var handleVoteClose = function (voteId) {
-    console.log('HANDLE VOTE CLOSE')
-    var editorInfo = this.editorInfo;
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteData) {
         if (err) return console.error(err);
         socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
@@ -207,18 +297,6 @@ var handleVoteClose = function (voteId) {
     });
 };
 
-var getLastLine = function(firstLine, rep){
-    var lastLineSelected = rep.selEnd[0];
-  
-    if (lastLineSelected > firstLine){
-      // Ignore last line if the selected text of it it is empty
-      if(lastLineSelectedIsEmpty(rep, lastLineSelected)){
-        lastLineSelected--;
-      }
-    }
-    return lastLineSelected;
-};
-
 var lastLineSelectedIsEmpty = function(rep, lastLineSelected){
     var line = rep.lines.atIndex(lastLineSelected);
     // when we've a line with line attribute, the first char line position
@@ -231,7 +309,7 @@ var lastLineSelectedIsEmpty = function(rep, lastLineSelected){
 var getSelectedText = function(rep) {
     var self = this;
     var firstLine = rep.selStart[0];
-    var lastLine = getLastLine(firstLine, rep);
+    var lastLine = getLastLine(rep);
     var selectedText = "";
   
     _(_.range(firstLine, lastLine + 1)).each(function(lineNumber){
@@ -273,7 +351,9 @@ var createVote = function() {
     var now = new Date().getTime();
     var defaultOptionText = getSelectedText(rep);
     
-    $('#inline-vote-settings').show();
+    var Y = getYOffsetOfRep(rep);
+    drawAt($('#inline-vote-settings'), Y);
+    
     $('#vote-option-1').val(defaultOptionText);
     var description = $('#vote-description').val();
     $('#start-vote').on('click', function () {
@@ -295,7 +375,7 @@ var createVote = function() {
             closed: false
         };
 
-        if (options.length) {
+        if (options.length && options.length > 1) {
             socket.emit('startVote', voteData, function (err, data){
                 self.editorInfo.ace_callWithAce(function (ace){
                     ace.ace_performSelectionChange(rep.selStart, rep.selEnd, true);
@@ -311,14 +391,6 @@ var createVote = function() {
     });
 }
 
-var getVotes = function (callback){
-    var req = { padId: clientVars.padId };
-
-    socket.emit('getVotes', req, function (res){
-        callback(res.votes);
-    });
-};
-
 
 exports.aceInitialized = function(hook, context){
     createVote = _(createVote).bind(context);
@@ -332,7 +404,6 @@ exports.aceInitialized = function(hook, context){
     });
 
     $('.close-inline-vote-modal').on('click', function (e) {
-        console.log(this);
         $(e.target).parent().hide();
     });
     
@@ -347,8 +418,7 @@ exports.aceInitialized = function(hook, context){
                     $(this).parent().remove();
                 } else  {
                     $(this).parent().find('input').val('');
-                }
-                
+                }                
             });
         }
     });
@@ -357,8 +427,7 @@ exports.aceInitialized = function(hook, context){
             $(this).parent().remove();
         } else  {
             $(this).parent().find('input').val('');
-        }
-        
+        }        
     });
 }
 
@@ -366,7 +435,6 @@ exports.aceAttribsToClasses = function(hook, context){
     if (context.key.indexOf('vote') === 0) {
         return [context.key];
     }
-
 }
   
 exports.aceAttribClasses = function(hook, attr){

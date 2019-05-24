@@ -68,6 +68,15 @@ exports.socketio = function (hook_name, args, cb){
       });
     });
 
+    socket.on('getVoteCount', function (data, callback) {
+      var padId = data.padId;
+      socket.join(padId);
+      voteManager.getVoteCount(padId, data.voteId, data.authorID, function (err, result){
+        if(err) console.error(err);
+        callback(err, result);
+      });
+    });
+    
     socket.on('getVotes', function (data, callback) {
       var padId = data.padId;
       socket.join(padId);
@@ -151,7 +160,6 @@ exports.expressCreateServer = function (hook_name, args, callback) {
   });
 
 };
-
 
 var broadcastVotesAdded = function(padId, voteIds, votes) {
   var socket = clientIO.connect(broadcastUrl);
