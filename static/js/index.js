@@ -16,6 +16,15 @@ var lastLineSelectedIsEmpty = function(rep, lastLineSelected) {
     return lastColumnSelected === firstCharLinePosition;
 }
 
+var getAuthorName = function (authorID) {
+    var authors = clientVars.collab_client_vars.historicalAuthorData;
+    if (authors[authorID]) {
+        return authors[authorID].name;
+    }
+    
+    return null;
+};
+
 var getLastLine = function(rep) {
     var firstLine = rep.selStart[0];
     var lastLineSelected = rep.selEnd[0];
@@ -89,15 +98,23 @@ exports.postToolbarInit = function (hookName, args) {
     });
 };
 
+var getDateTimeString = function(timestamp) {
+    var d = new Date(timestamp);
+    return d.getDate() +'/'+ (d.getMonth()+1) + '/' + d.getFullYear() + ' '  + d.getHours() + ':' + ('0' + d.getMinutes()).substr(-2);
+};
+
 var getVoteCount = function (voteId) {
     var padOuter = $('iframe[name="ace_outer"]');
     var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
 
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, voteSettings) {
         socket.emit('getVoteCount', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, result) {
-            console.log('VOTE COUNT', result);
             var countHTML = html10n.get('ep_inline_voting.total_votes', {'count': result.count});
-            $('#vote-count').html(countHTML);
+            $('#vote-count').text(countHTML);
+            $('#creator-name').text(getAuthorName(voteSettings.author));
+            $('#create-time').text(getDateTimeString(voteSettings.createdAt));
+            $('#description-content').text(voteSettings.description);
+            
             var itemHtml = "";
             _.each(voteSettings.options, function (option) {
                 var userVote = false;
@@ -148,7 +165,11 @@ var getVoteResult = function (voteId) {
         if (err) {
             return console.error(err);
         }
-        
+
+        $('#creator-name').text(getAuthorName(voteSettings.author));
+        $('#create-time').text(getDateTimeString(voteSettings.createdAt));
+        $('#description-content').text(voteSettings.description);
+
         socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
             if (err) console.error(err)
             var itemHtml = '';
@@ -358,13 +379,15 @@ var createVote = function() {
     var now = new Date().getTime();
     var defaultOptionText = getSelectedText(rep);
     
+    $('#vote-description-area').attr("placeholder", html10n.get('ep_inline_voting.vote_title_label'));
     var Y = getYOffsetOfRep(rep);
     drawAt($('#inline-vote-settings'), Y);
     
     $('#vote-option-1').val(defaultOptionText);
-    var description = $('#vote-description').val();
+    $('#start-vote').off();
     $('#start-vote').on('click', function () {
         var options = [];
+        var description = $('#vote-description-area').val();
         $('.vote-option-input').each(function (key, item) {
             if (item.value) {
                 options.push(item.value);
