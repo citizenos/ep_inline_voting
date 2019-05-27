@@ -3,7 +3,7 @@ var _ = require('ep_etherpad-lite/static/js/underscore');
 var loc = document.location;
 var port = loc.port == "" ? (loc.protocol == "https:" ? 443 : 80) : loc.port;
 var url = loc.protocol + "//" + loc.hostname + ":" + port + "/" + "vote";
-var socket     = io.connect(url);
+var socket     = io.connect(url, {forceNew: true});
 var cssFiles = ['ep_inline_voting/static/css/vote.css'];
 
 var lastLineSelectedIsEmpty = function(rep, lastLineSelected) {
@@ -145,7 +145,9 @@ var getVoteResult = function (voteId) {
     var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
 
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
-        if (err) return console.error(err);
+        if (err) {
+            return console.error(err);
+        }
         
         socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
             if (err) console.error(err)
@@ -221,7 +223,9 @@ var addVoteClickListeners = function () {
             });
             if (voteId) {
                 socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
-                    if (err) return console.error(err);
+                    if (err) {
+                        return console.error(err);
+                    }
                     
                     if (voteSettings.closed) {
                         getVoteResult(voteId);
@@ -254,7 +258,10 @@ var closeVote  = function (padId, voteId) {
 
 var handleVoteClose = function (voteId) {
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteData) {
-        if (err) return console.error(err);
+        if (err) {
+            return console.error(err);
+        }
+
         socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
             if (err) console.error(err)
 
@@ -270,29 +277,27 @@ var handleVoteClose = function (voteId) {
                 }
             });
 
-            if (!winner) {
-                return;
+            if (winner) {
+                $("#root_lightbox").show();
+                $("#vote_button_keep").on('click', function () {
+                    closeVote(clientVars.padId, voteId);
+                    $("#root_lightbox").hide();
+                    $("#inline-vote-form").hide();
+                });
+
+                $("#vote_button_replace").on('click', function () {                
+                    var padOuter = $('iframe[name="ace_outer"]').contents();
+                    var padInner = padOuter.find('iframe[name="ace_inner"]');
+
+                    var padVoteContent = padInner.contents().find("."+voteData.voteId).first();
+                    winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
+
+                    $(padVoteContent).html(winner);
+                    $("#root_lightbox").hide();
+                    $("#inline-vote-form").hide();
+                    closeVote(clientVars.padId, voteId);
+                });
             }
-
-            $("#root_lightbox").show();
-            $("#vote_button_keep").on('click', function () {
-                closeVote(clientVars.padId, voteId);
-                $("#root_lightbox").hide();
-                $("#inline-vote-form").hide();
-            });
-
-            $("#vote_button_replace").on('click', function () {                
-                var padOuter = $('iframe[name="ace_outer"]').contents();
-                var padInner = padOuter.find('iframe[name="ace_inner"]');
-
-                var padVoteContent = padInner.contents().find("."+voteData.voteId).first();
-                winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
-
-                $(padVoteContent).html(winner);
-                $("#root_lightbox").hide();
-                $("#inline-vote-form").hide();
-                closeVote(clientVars.padId, voteId);
-            });
         });
     });
 };
@@ -305,7 +310,8 @@ var lastLineSelectedIsEmpty = function(rep, lastLineSelected){
     var lastColumnSelected = rep.selEnd[1];
 
     return lastColumnSelected === firstCharLinePosition;
-}
+};
+
 var getSelectedText = function(rep) {
     var self = this;
     var firstLine = rep.selStart[0];
@@ -342,6 +348,7 @@ var getSelectedText = function(rep) {
        }
        selectedText += lineText;
     });
+    
     return selectedText;
 };
 

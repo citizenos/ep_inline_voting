@@ -13,7 +13,8 @@
       }
     ],
     "dependencies": {
-      "formidable": "*"
+      "formidable": "*",
+      "socket.io-client": "*"
     },
     "devDependencies": {
       "request": "*"

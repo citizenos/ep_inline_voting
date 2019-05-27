@@ -24,7 +24,7 @@ var getVoteCount = function (padId, voteId, authorID, callback) {
   var returndata = {count:0};
   getVoteResult(padId, voteId, function (err, result) {
     if (err) return callback(err);
-
+    if(!result) return callback(null, returndata);
     _.each(Object.keys(result), function (opt) {
       _.each(result[opt], function (vote) {
         if (vote.author === authorID) {
