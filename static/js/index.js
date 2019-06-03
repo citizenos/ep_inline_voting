@@ -79,7 +79,7 @@ var buildUserVote = function(voteId, option) {
 var vote = function (voteId, option) {
     var vote = buildUserVote(voteId, option);
     socket.emit('addVote', vote, function (err, vote){
-      //  getVoteResult(voteId);
+      if (err) return console.error(err);
       getVoteCount(voteId);
     });
 
@@ -236,8 +236,7 @@ var addVoteClickListeners = function () {
     $(padInner).contents().find('.vote').each(function (key, elem) {
         $(elem).off();
         $(elem).on('click', function (e) {
-            var voteId = e.target.classList.value.match(/(vote-[0-9]+)=?/g)[0];
-            var closed = /voteClosed=?/g.test(e.target.classList.value);
+            var voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
             $('#close-vote').off();
             $('#close-vote').on('click', function () {
                 handleVoteClose(voteId);
@@ -379,15 +378,24 @@ var createVote = function() {
     var now = new Date().getTime();
     var defaultOptionText = getSelectedText(rep);
     
+    $('#vote-description-area').val("");
     $('#vote-description-area').attr("placeholder", html10n.get('ep_inline_voting.vote_title_label'));
     var Y = getYOffsetOfRep(rep);
     drawAt($('#inline-vote-settings'), Y);
     
+    var itemCount = 0;
+    $('.vote-option-input').each(function (key, item) {
+        itemCount++;
+        item.value = '';
+        if (itemCount > 2) {
+            item.remove();
+        }
+    });
     $('#vote-option-1').val(defaultOptionText);
     $('#start-vote').off();
     $('#start-vote').on('click', function () {
         var options = [];
-        var description = $('#vote-description-area').val();
+        var description = $('#vote-description-area').val() || "";
         $('.vote-option-input').each(function (key, item) {
             if (item.value) {
                 options.push(item.value);
