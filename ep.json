@@ -9,7 +9,7 @@
             "aceAttribsToClasses": "ep_inline_voting/static/js/index",
             "collectContentPre": "ep_inline_voting/static/js/shared",
             "aceAttribClasses":"ep_inline_voting/static/js/index",
-            "postAceInit": "ep_inline_voting/static/js/index",
+            "aceEditEvent": "ep_inline_voting/static/js/index",
             "aceEditorCSS": "ep_inline_voting/static/js/index"
         },
         "hooks": {

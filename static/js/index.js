@@ -152,6 +152,7 @@ var getVoteCount = function (voteId) {
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
             var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
+            $('#inline-vote-settings').hide();
             drawAt($('#inline-vote-form'), Y);
         });
     });
@@ -225,6 +226,7 @@ var getVoteResult = function (voteId) {
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
             var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
+            $('#inline-vote-settings').hide();
             drawAt($('#inline-vote-form'), Y);
         });
     });
@@ -299,6 +301,8 @@ var handleVoteClose = function (voteId) {
 
             if (winner) {
                 $("#root_lightbox").show();
+                $('#vote_selected_text').html(voteData.selectedText);
+                $('#vote_winner_text').html(winner);
                 $("#vote_button_keep").on('click', function () {
                     closeVote(clientVars.padId, voteId);
                     $("#root_lightbox").hide();
@@ -381,6 +385,7 @@ var createVote = function() {
     $('#vote-description-area').val("");
     $('#vote-description-area').attr("placeholder", html10n.get('ep_inline_voting.vote_title_label'));
     var Y = getYOffsetOfRep(rep);
+    $('#inline-vote-form').hide();
     drawAt($('#inline-vote-settings'), Y);
     
     var itemCount = 0;
@@ -434,6 +439,11 @@ exports.aceInitialized = function(hook, context){
     createVote = _(createVote).bind(context);
     closeVote = _(closeVote).bind(context);
     handleVoteClose = _(handleVoteClose).bind(context);
+    var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
+    padInner.on('click', function () {
+        $('#inline-vote-form').hide();
+        $('#inline-vote-settings').hide();   
+    });
     
     $('#inline-vote-form').off('submit');
 
@@ -479,6 +489,13 @@ exports.aceAttribClasses = function(hook, attr){
     return attr;
 }
 
-exports.postAceInit = function(hook, attr) {
-    addVoteClickListeners();
+// Not sure if this is the best solution, but got overriden by other plugins so some vote items missed click handlers
+var events = [];
+exports.aceEditEvent = function(hook, call) {
+    var cs = call.callstack;
+    if (events.indexOf(cs.type) === -1) {
+        events.push(cs.type);
+        addVoteClickListeners();
+    }
+    
 }
