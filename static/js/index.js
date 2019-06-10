@@ -196,6 +196,7 @@ var getVoteResult = function (voteId) {
                     barLength = ((vcount/totalVotes * 100) || 1) + ((vcount/totalVotes)? '%': 'px');
                     resultText = (vcount || 0 );
                     valueText = item;
+                    $('#vote-form-buttons-wrap').hide();
                 }
                 
                 itemHtml += '<div class="option-wrap"> \
@@ -215,7 +216,9 @@ var getVoteResult = function (voteId) {
             });
             
             $('#vote-options-list').html(itemHtml);
-            
+            if (voteSettings && voteSettings.closed) {
+                $('.vote-option-radio').attr('disabled', true);
+            }
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
             var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
@@ -231,6 +234,8 @@ var addVoteClickListeners = function () {
     $(padInner).contents().find('.vote').each(function (key, elem) {
         $(elem).off();
         $(elem).on('click', function (e) {
+            $('#vote-form-buttons-wrap').show();
+            $('.vote-option-radio').attr('disabled', false);
             var voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
             $('#close-vote').off();
             $('#close-vote').on('click', function () {
@@ -245,7 +250,7 @@ var addVoteClickListeners = function () {
                     if (err) {
                         return console.error(err);
                     }
-                    
+
                     if (voteSettings.closed) {
                         getVoteResult(voteId);
                         

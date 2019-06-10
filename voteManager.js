@@ -138,6 +138,10 @@ exports.addVote = function(padId, data, callback)
 
     if (!vote) return;
     
+    if (vote.closed) {
+      return callback('Voting is closed!');
+    }
+
     getVoteResult(padId, voteId, function (err, result) {
       if (ERR(err, callback)) return;
 
@@ -159,7 +163,7 @@ exports.addVote = function(padId, data, callback)
           }
         });
       });
-      
+
       if (result[option]) {
         result[option].push({author: data.author, timestamp: parseInt(data.timestamp) || new Date().getTime()});
         db.set("votes:" + padId + ":" + voteId + "result", result);
