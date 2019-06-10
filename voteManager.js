@@ -154,16 +154,20 @@ exports.addVote = function(padId, data, callback)
 
       _.each(Object.keys(result), function (opt) {
         _.each(result[opt], function (voteData, i) {
-          if (voteData.author === data.author) {
+          if (voteData.author === authorId) {
             result[opt].splice(i, 1);
           }
         });
       });
-
-      result[data.value].push({author: data.author, timestamp: parseInt(data.timestamp) || new Date().getTime()});
-
-      db.set("votes:" + padId + ":" + voteId + "result", result);
-      callback(null, result);
+      
+      if (result[option]) {
+        result[option].push({author: data.author, timestamp: parseInt(data.timestamp) || new Date().getTime()});
+        db.set("votes:" + padId + ":" + voteId + "result", result);
+        callback(null, result);
+      } else {
+        callback("Invalid option:" + option);
+      }
+      
     });
   });
 };

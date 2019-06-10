@@ -8,6 +8,7 @@
     "ep_inline_voting.define_vote_options":"Define voting options",
     "ep_inline_voting.vote_options": "Voting options",
     "ep_inline_voting.edit": "Edit",
+    "ep_inline_voting.save": "Vote",
     "ep_inline_voting.close_vote": "Close Voting",
     "ep_inline_voting.overwrite_the_selection": "Do you want to overwrite the selection?",
     "ep_inline_voting.use_winning_option_as_replacement": "Use the winning option as a replacement for the selected text.",

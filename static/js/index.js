@@ -76,13 +76,16 @@ var buildUserVote = function(voteId, option) {
     return vote;
   }
 
-var vote = function (voteId, option) {
-    var vote = buildUserVote(voteId, option);
-    socket.emit('addVote', vote, function (err, vote){
-      if (err) return console.error(err);
-      getVoteCount(voteId);
-    });
+var vote = function (voteId) {
+    var option = $('.vote-option-radio:checked').val();
+    if (voteId && option) {        
+        var vote = buildUserVote(voteId, option);
+        socket.emit('addVote', vote, function (err, vote){
+        if (err) return console.error(err);
+        });
+    }
 
+    $('#inline-vote-form').hide();
     return false;
 }
 
@@ -143,11 +146,6 @@ var getVoteCount = function (voteId) {
             });
 
             $('#vote-options-list').html(itemHtml);
-
-            $('#inline-vote-form .option-wrap').off();
-            $('#inline-vote-form .option-wrap').on('click', function (e) {
-                vote(voteId, $(this).find('input')[0].value);
-            });
 
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
@@ -217,11 +215,6 @@ var getVoteResult = function (voteId) {
             });
             
             $('#vote-options-list').html(itemHtml);
-
-            $('#inline-vote-form .option-wrap').off();
-            $('#inline-vote-form .option-wrap').on('click', function (e) {
-                vote(voteId, $(this).find('input')[0].value);
-            });
             
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
@@ -242,6 +235,10 @@ var addVoteClickListeners = function () {
             $('#close-vote').off();
             $('#close-vote').on('click', function () {
                 handleVoteClose(voteId);
+            });
+            $('#save-vote').off();
+            $('#save-vote').on('click', function () {
+                vote(voteId);
             });
             if (voteId) {
                 socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
@@ -449,6 +446,10 @@ exports.aceInitialized = function(hook, context){
 
     $('#cancel-vote').on('click', function () {
         $('#inline-vote-settings').hide();
+    });
+
+    $('#cancel-voting').on('click', function () {
+        $('#inline-vote-form').hide();
     });
 
     $('.close-inline-vote-modal').on('click', function (e) {
