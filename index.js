@@ -76,7 +76,7 @@ exports.socketio = function (hook_name, args, cb){
         callback(err, result);
       });
     });
-    
+
     socket.on('getVotes', function (data, callback) {
       var padId = data.padId;
       socket.join(padId);
@@ -138,7 +138,7 @@ exports.expressCreateServer = function (hook_name, args, callback) {
   });
 
   args.app.post('/p/:pad/:rev?/votes/:voteId?', function(req, res) {
-    
+
     new formidable.IncomingForm().parse(req, function (err, fields, files) {
       // check the api key
       if(!apiUtils.validateApiKey(fields, res)) return;

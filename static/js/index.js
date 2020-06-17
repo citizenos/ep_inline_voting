@@ -12,7 +12,7 @@ var lastLineSelectedIsEmpty = function(rep, lastLineSelected) {
     // in a line is 1 because of the *, otherwise is 0
     var firstCharLinePosition = (line.lineMarker === 1) ? 1 : 0;
     var lastColumnSelected = rep.selEnd[1];
-  
+
     return lastColumnSelected === firstCharLinePosition;
 }
 
@@ -21,14 +21,14 @@ var getAuthorName = function (authorID) {
     if (authors[authorID]) {
         return authors[authorID].name;
     }
-    
+
     return null;
 };
 
 var getLastLine = function(rep) {
     var firstLine = rep.selStart[0];
     var lastLineSelected = rep.selEnd[0];
-  
+
     if (lastLineSelected > firstLine){
       // Ignore last line if the selected text of it it is empty
       if(lastLineSelectedIsEmpty(rep, lastLineSelected)){
@@ -42,43 +42,45 @@ function getYOffsetOfRep(rep){
     var padOuter = $('iframe[name="ace_outer"]');
     var padInner = padOuter.contents().find('iframe[name="ace_inner"]');
     var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
-    
+
     // Get the target Line
     var index = getLastLine(rep);
     var line = rep.lines.atIndex(index);
     var divEl = $(line.lineNode);
-  
+
     // Is the line visible yet?
     if ( divEl.length !== 0 ) {
       var top = divEl.offset().top + divEl.height() + topCorrection; // A standard generic offset
-     
+
       return top;
     }
   }
-  
+
 var drawAt = function (element, topOffset){
     element.show();
+    element.addClass('popup-show');
     element.css({
       "position": "absolute",
-      "top": topOffset 
+      "top": topOffset
     });
+    console.log(element);
 }
 
 var buildUserVote = function(voteId, option) {
     var vote = {};
-  
+
     vote.voteId = voteId;
     vote.value = option;
     vote.padId = clientVars.padId;
     vote.author = clientVars.userId;
     vote.createdAt = new Date().getTime();
-  
+
     return vote;
   }
 
 var vote = function (voteId) {
     var option = $('.vote-option-radio:checked').val();
-    if (voteId && option) {        
+    if (voteId && option) {
         var vote = buildUserVote(voteId, option);
         socket.emit('addVote', vote, function (err, vote){
         if (err) return console.error(err);
@@ -86,6 +88,7 @@ var vote = function (voteId) {
     }
 
     $('#inline-vote-form').hide();
+    $('#inline-vote-form').removeClass('popup-show');
     return false;
 }
 
@@ -94,7 +97,7 @@ exports.aceEditorCSS = function(){
 }
 exports.postToolbarInit = function (hookName, args) {
     var editbar = args.toolbar;
- 
+
     editbar.registerCommand('createVote', function () {
       createVote();
       addVoteClickListeners();
@@ -117,7 +120,7 @@ var getVoteCount = function (voteId) {
             $('#creator-name').text(getAuthorName(voteSettings.author));
             $('#create-time').text(getDateTimeString(voteSettings.createdAt));
             $('#description-content').text(voteSettings.description);
-            
+
             var itemHtml = "";
             _.each(voteSettings.options, function (option) {
                 var userVote = false;
@@ -128,7 +131,7 @@ var getVoteCount = function (voteId) {
                 var resultText = option;
                 var valueText = "";
                 var resultVotes = "";
-                
+
                 itemHtml += '<div class="option-wrap"> \
                     <div class="option-result-bar-wrap"> \
                         <label class="container"> \
@@ -151,6 +154,7 @@ var getVoteCount = function (voteId) {
             var h = padInner.contents().find('.'+voteId).height();
             var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
             $('#inline-vote-settings').hide();
+            $('#inline-vote-settings').removeClass('popup-show');
             drawAt($('#inline-vote-form'), Y);
         });
     });
@@ -173,7 +177,7 @@ var getVoteResult = function (voteId) {
             if (err) console.error(err)
             var itemHtml = '';
             var totalVotes = 0;
-            
+
             $.each(Object.keys(result), function (key, item) {
                 totalVotes += result[item].length;
             });
@@ -198,7 +202,7 @@ var getVoteResult = function (voteId) {
                     valueText = item;
                     $('#vote-form-buttons-wrap').hide();
                 }
-                
+
                 itemHtml += '<div class="option-wrap"> \
                     <div class="option-result-bar-wrap"> \
                         <label class="container"> \
@@ -214,7 +218,7 @@ var getVoteResult = function (voteId) {
                     </div> \
                 </div>'
             });
-            
+
             $('#vote-options-list').html(itemHtml);
             if (voteSettings && voteSettings.closed) {
                 $('.vote-option-radio').attr('disabled', true);
@@ -223,6 +227,7 @@ var getVoteResult = function (voteId) {
             var h = padInner.contents().find('.'+voteId).height();
             var Y = padInner.contents().find('.'+voteId).offset().top + h + topCorrection;
             $('#inline-vote-settings').hide();
+            $('#inline-vote-settings').removeClass('popup-show');
             drawAt($('#inline-vote-form'), Y);
         });
     });
@@ -238,8 +243,8 @@ var addVoteClickListeners = function () {
             $('.vote-option-radio').attr('disabled', false);
             var voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
             $('#close-vote').off();
-            $('#close-vote').on('click', function () {
-                handleVoteClose(voteId);
+            $('#close-vote').on('click', function (e) {
+                handleVoteClose(voteId, e);
             });
             $('#save-vote').off();
             $('#save-vote').on('click', function () {
@@ -253,13 +258,13 @@ var addVoteClickListeners = function () {
 
                     if (voteSettings.closed) {
                         getVoteResult(voteId);
-                        
+
                     } else  {
                         getVoteCount(voteId);
                     }
                 });
             }
-            
+
         });
     });
 };
@@ -275,12 +280,13 @@ var closeVote  = function (padId, voteId) {
             ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
             ace.ace_setAttributeOnSelection('voteClosed', true);
             $('#inline-vote-settings').hide();
+            $('#inline-vote-settings').removeClass('popup-show');
             addVoteClickListeners();
         },'closeVote', true);
     });
 };
 
-var handleVoteClose = function (voteId) {
+var handleVoteClose = function (voteId, triger) {
     socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteData) {
         if (err) {
             return console.error(err);
@@ -300,18 +306,20 @@ var handleVoteClose = function (voteId) {
                     return;
                 }
             });
-
             if (winner) {
-                $("#root_lightbox").show();
+                var Y = $(triger.target).closest('.popup').offset().top;
+                drawAt($("#close_confirm"), Y)
                 $('#vote_selected_text').html(voteData.selectedText);
                 $('#vote_winner_text').html(winner);
                 $("#vote_button_keep").on('click', function () {
                     closeVote(clientVars.padId, voteId);
-                    $("#root_lightbox").hide();
+                    $("#close_confirm").hide();
+                    $("#close_confirm").removeClass('popup-show');
                     $("#inline-vote-form").hide();
+                    $("#inline-vote-form").removeClass('popup-show');
                 });
 
-                $("#vote_button_replace").on('click', function () {                
+                $("#vote_button_replace").on('click', function () {
                     var padOuter = $('iframe[name="ace_outer"]').contents();
                     var padInner = padOuter.find('iframe[name="ace_inner"]');
 
@@ -319,8 +327,10 @@ var handleVoteClose = function (voteId) {
                     winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
 
                     $(padVoteContent).html(winner);
-                    $("#root_lightbox").hide();
+                    $("#close_confirm").hide();
+                    $("#close_confirm").removeClass('popup-show');
                     $("#inline-vote-form").hide();
+                    $("#inline-vote-form").removeClass('popup-show');
                     closeVote(clientVars.padId, voteId);
                 });
             }
@@ -343,7 +353,7 @@ var getSelectedText = function(rep) {
     var firstLine = rep.selStart[0];
     var lastLine = getLastLine(rep);
     var selectedText = "";
-  
+
     _(_.range(firstLine, lastLine + 1)).each(function(lineNumber){
        var line = rep.lines.atIndex(lineNumber);
        // If we span over multiple lines
@@ -374,7 +384,7 @@ var getSelectedText = function(rep) {
        }
        selectedText += lineText;
     });
-    
+
     return selectedText;
 };
 
@@ -383,13 +393,16 @@ var createVote = function() {
     var rep = self.rep;
     var now = new Date().getTime();
     var defaultOptionText = getSelectedText(rep);
-    
+
     $('#vote-description-area').val("");
     $('#vote-description-area').attr("placeholder", html10n.get('ep_inline_voting.vote_title_label'));
     var Y = getYOffsetOfRep(rep);
     $('#inline-vote-form').hide();
+    $("#inline-vote-form").removeClass('popup-show');
+    $('#close_confirm').hide();
+    $('#close_confirm').removeClass('popup-show');
     drawAt($('#inline-vote-settings'), Y);
-    
+
     var itemCount = 0;
     $('.vote-option-input').each(function (key, item) {
         itemCount++;
@@ -427,10 +440,11 @@ var createVote = function() {
                     ace.ace_setAttributeOnSelection(voteId, true);
                     ace.ace_setAttributeOnSelection('vote', true);
                     $('#inline-vote-settings').hide();
+                    $("#inline-vote-settings").removeClass('popup-show');
                     addVoteClickListeners();
                 },'createNewVote', true);
             });
-        }       
+        }
         $('#inline-vote-settings').hide();
         addVoteClickListeners();
     });
@@ -444,23 +458,31 @@ exports.aceInitialized = function(hook, context){
     var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
     padInner.on('click', function () {
         $('#inline-vote-form').hide();
-        $('#inline-vote-settings').hide();   
+        $("#inline-vote-form").removeClass('popup-show');
+        $('#inline-vote-settings').hide();
+        $("#inline-vote-settings").removeClass('popup-show');
+        $('#close_confirm').hide();
+        $('#close_confirm').removeClass('popup-show');
     });
-    
+
     $('#inline-vote-form').off('submit');
 
     $('#cancel-vote').on('click', function () {
         $('#inline-vote-settings').hide();
+        $("#inline-vote-settings").removeClass('popup-show');
     });
 
     $('#cancel-voting').on('click', function () {
         $('#inline-vote-form').hide();
+        $("#inline-vote-form").removeClass('popup-show');
     });
 
-    $('.close-inline-vote-modal').on('click', function (e) {
+    $('.close_popup').on('click', function (e) {
         $(e.target).parent().hide();
+        $(e.target).parent().removeClass('popup-show');
     });
-    
+
+
     $('#inline-vote-add-option').on('click', function () {
         if ($('#vote-options-wrap .vote-option-input').length < 5) {
             var itemIndex =$('#vote-options-wrap .vote-option-input').length + 1;
@@ -472,7 +494,7 @@ exports.aceInitialized = function(hook, context){
                     $(this).parent().remove();
                 } else  {
                     $(this).parent().find('input').val('');
-                }                
+                }
             });
         }
     });
@@ -481,7 +503,7 @@ exports.aceInitialized = function(hook, context){
             $(this).parent().remove();
         } else  {
             $(this).parent().find('input').val('');
-        }        
+        }
     });
 }
 
@@ -490,7 +512,7 @@ exports.aceAttribsToClasses = function(hook, context){
         return [context.key];
     }
 }
-  
+
 exports.aceAttribClasses = function(hook, attr){
     return attr;
 }
@@ -503,5 +525,5 @@ exports.aceEditEvent = function(hook, call) {
         events.push(cs.type);
         addVoteClickListeners();
     }
-    
+
 }
