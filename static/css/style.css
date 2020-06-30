@@ -35,3 +35,23 @@
     font-size: 0.8em;
     padding-right: 5px;
 }
+
+#inline-vote-add-option {
+	height: 20px;
+    color: #0680FC;
+    margin: 10px 0 20px 0;
+	font-family: "Noto Sans",  sans-serif;
+	font-size: 14px;
+	line-height: 20px;
+}
+.oval {
+    display: inline-block;
+    height: 15px;
+    width: 15px;
+    border: 1px solid #0680FC;
+    border-radius: 15px;
+    text-align: center;
+    line-height: 14px;
+    font-size: 18px;
+    margin-right: 4px;
+}
