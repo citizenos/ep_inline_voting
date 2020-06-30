@@ -4,27 +4,14 @@
     <div id="settings-content">
         <div id="vote-description-wrap"><textarea id="vote-description-area" rows="1" name="vote-description" placeholder="Insert vote description"></textarea></div>
         <div id="vote-options-wrap">
-            <div id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.define_vote_options">Define vote options</div>
+            <h2 id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.define_vote_options">Define vote options</h2>
             <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-1" name="vote-option-1"/><div class="remove-vote-option"></div></div>
             <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-2" name="vote-option-2"/><div class="remove-vote-option"></div></div>
-            <div class="option-wrap">
-                <button id="inline-vote-add-option"><span class="oval">+</span><span data-l10n-id="ep_inline_voting.add_option">Add another vote option</span></button>
+            <div id="add-vote-options-wrap" class="option-wrap">
+                <a id="inline-vote-add-option"><span class="oval">+</span><span data-l10n-id="ep_inline_voting.add_option">Add another vote option</span></a>
             </div>
         </div>
-        <!--div id="vote-settings-options-wrapper">
-            <div class="option-wrap">
-                <label for="replace">
-                    <span data-l10n-id="ep_inline_voting.settings_replace">Replace selection with vote result value</span>
-                    <input id="vote_settings_replace" type="checkbox" name="replace" value="replace">
-                </label>
-            </div>
-            <div class="option-wrap">
-                <label for="set_deadline">
-                    <span data-l10n-id="ep_inline_voting.settings_set_deadline">Set deadline</span>
-                    <input id="vote_settings_set_deadline" type="checkbox" name="set_deadline" value="set_deadline">
-                </label>
-            </div>
-        </div -->
+
         <div id="vote-settings-buttons-wrap">
             <button id="cancel-vote" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
             <button id="start-vote" class="btn-primary" data-l10n-id="ep_inline_voting.start_vote">Start Vote</button>
@@ -75,9 +62,6 @@
                     </div>
                 </p>
             </div>
-            <!--div class="option-wrap">
-                <a id="inline-vote-add-option"><span class="oval">+</span><span data-l10n-id="ep_inline_voting.add_option">Add another vote option</span></a>
-            </div-->
         </div>
         <div id="vote-form-buttons-wrap">
             <button id="cancel-voting" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
@@ -121,8 +105,8 @@
             </div>
 
             <div class="delete_info_button_wrap">
-                <button id="vote_button_keep" class="no" data-l10n-id="ep_inline_voting.no_keep_the_original">NO, KEEP THE ORIGINAL</button>
-                <button id="vote_button_replace" class="yes" data-l10n-id="ep_inline_voting.yes_overwrite">YES, OVERWRITE</button>
+                <button id="vote_button_keep" class="btn-default" data-l10n-id="ep_inline_voting.no_keep_the_original">NO, KEEP THE ORIGINAL</button>
+                <button id="vote_button_replace" class="btn-primary" data-l10n-id="ep_inline_voting.yes_overwrite">YES, OVERWRITE</button>
             </div>
 
         </div>
