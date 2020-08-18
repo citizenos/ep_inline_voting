@@ -1,3 +1,21 @@
 .vote {
     background-color: #ccc;
 }
+
+#voteIcons {
+    position: relative;
+}
+
+.vote-icons-line {
+    position: relative;
+    display: inline-flex;
+}
+
+.vote-icon{
+    width: 24px;
+    height: 30px;
+    background-image: url("./topic_highlight_indication.png");
+    display: inline-block;
+    margin-left: 2px;
+    position: relative;
+}

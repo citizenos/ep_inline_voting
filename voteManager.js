@@ -1,7 +1,6 @@
 var _ = require('ep_etherpad-lite/static/js/underscore');
 var db = require('ep_etherpad-lite/node/db/DB').db;
 var ERR = require("ep_etherpad-lite/node_modules/async-stacktrace");
-var randomString = require('ep_etherpad-lite/static/js/pad_utils').randomString;
 var readOnlyManager = require("ep_etherpad-lite/node/db/ReadOnlyManager.js");
 
 //Get Vote settings
@@ -14,7 +13,7 @@ var getVote = function (padId, voteId, callback) {
 var getVoteResult = function (padId, voteId, callback) {
   db.get("votes:" + padId + ":" + voteId + "result", function (err, result) {
     if(ERR(err, callback)) callback(err);
-    
+
     callback(null, result);
   });
 };
@@ -42,7 +41,7 @@ var getVoteCount = function (padId, voteId, authorID, callback) {
 exports.startVote = function(padId, data, callback)
 {
   var voteId = data.voteId;
-  
+
   db.get("votes:" + padId, function(err, votes)
   {
     if(ERR(err, callback)) return;
@@ -65,7 +64,7 @@ var updateVoteSettings = function (padId, voteId, settings, callback) {
     allowedFields.forEach(function (field) {
         vote[field] = settings[field];
     });
-    
+
     db.set("votes:" + padId + ":" + voteId, vote);
 
     callback(null, vote);
@@ -73,7 +72,7 @@ var updateVoteSettings = function (padId, voteId, settings, callback) {
 };
 
 //Return vote settings data
-exports.getVote = function (padId, voteId, callback) 
+exports.getVote = function (padId, voteId, callback)
 {
   getVote(padId, voteId, callback);
 }
@@ -88,11 +87,11 @@ var getVotes = function (padId, callback)
     });
   };
 
-  //get list of  all topic votes 
+  //get list of  all topic votes
   db.get("votes:" + padId, function(err, votes)
   {
     if(ERR(err, callback)) return console.error('Error', err);
-  
+
     var voteData = {};
     votesLoaded = 0;
     if(votes == null) votes = [];
@@ -101,7 +100,7 @@ var getVotes = function (padId, callback)
 
       getVote(padId, voteId, function (err, vote) {
         if(err) throw err;
-        
+
         voteData[voteId] = vote;
         votesLoaded++;
 
@@ -137,7 +136,7 @@ exports.addVote = function(padId, data, callback)
     if (ERR(err, callback)) return console.error('Error', err);
 
     if (!vote) return;
-    
+
     if (vote.closed) {
       return callback('Voting is closed!');
     }
@@ -171,7 +170,7 @@ exports.addVote = function(padId, data, callback)
       } else {
         callback("Invalid option:" + option);
       }
-      
+
     });
   });
 };

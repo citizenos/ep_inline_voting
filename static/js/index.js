@@ -242,23 +242,14 @@ var getVoteCount = function (voteId) {
                 if (result.userOption && result.userOption === option) {
                     userVote = true;
                 }
-                var barLength = 0;
-                var resultText = option;
-                var valueText = "";
-                var resultVotes = "";
 
                 itemHtml += '<div class="option-wrap"> \
                     <div class="option-result-bar-wrap"> \
                         <label class="container"> \
                             <input class="vote-option-radio" type="radio" name="option" value="'+option+'" '+ ((userVote)? 'checked' :'') +' /> \
                             <span class="checkmark"></span> \
-                            <div class="option-result-bar"> \
-                                <div class="option-result-fill" style="width:' + barLength + ';"> \
-                                    <div class="option-result-votes">' +resultVotes+  '</div> \
-                                </div> \
-                            </div> \
+                            <div class="option-value-active">'+option+'</div> \
                         </label> \
-                        <div class="option-value-active">'+resultText+'</div> \
                     </div> \
                 </div>'
             });
@@ -267,7 +258,7 @@ var getVoteCount = function (voteId) {
 
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
-            var XY= [padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
+            var XY= [padInner.offset().left + padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
 
             $('#inline-vote-settings').hide();
             $('#inline-vote-settings').removeClass('popup-show');
@@ -341,7 +332,7 @@ var getVoteResult = function (voteId) {
             }
             var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
             var h = padInner.contents().find('.'+voteId).height();
-            var XY = [padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
+            var XY = [padInner.offset().left + padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
             $('#inline-vote-settings').hide();
             $('#inline-vote-settings').removeClass('popup-show');
             drawAt($('#inline-vote-form'), XY);
@@ -352,7 +343,8 @@ var getVoteResult = function (voteId) {
 var addVoteClickListeners = function () {
     var padOuter = $('iframe[name="ace_outer"]');
     var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
-    $(padInner).contents().find('.vote').each(function (key, elem) {
+
+    var voteClickListeners = function (key, elem) {
         $(elem).off();
         $(elem).on('click', function (e) {
             $('#vote-form-buttons-wrap').show();
@@ -382,7 +374,10 @@ var addVoteClickListeners = function () {
             }
 
         });
-    });
+    };
+
+    $(padOuter).contents().find('.vote-icon').each(voteClickListeners);
+    $(padInner).contents().find('.vote').each(voteClickListeners);
 };
 
 var closeVote  = function (padId, voteId) {
@@ -418,10 +413,16 @@ var handleVoteClose = function (voteId, triger) {
                     winner = key;
                     votecount = item.length;
                 } else if (winner && votecount > 0 && item.length === votecount) {
-                    throw new Error('Vote cannot be closed, tie');
+                    winner = null;
+                    $.gritter.add({
+                        title: "Error",
+                        text: "Vote cannot be closed, tie",
+                        class_name: "error"
+                    });
                     return;
                 }
             });
+
             if (winner) {
                 var XY = [$(triger.target).closest('.popup').offset().left, $(triger.target).closest('.popup').offset().top];
                 drawAt($("#close_confirm"), XY)
@@ -557,6 +558,8 @@ var createVote = function() {
                     ace.ace_setAttributeOnSelection('vote', true);
                     $('#inline-vote-settings').hide();
                     $("#inline-vote-settings").removeClass('popup-show');
+                    var elem = $('iframe[name=ace_outer]').contents().find('iframe[name="ace_inner"]').contents().find('.vote.'+voteId);
+                    insertIcons(elem);
                     addVoteClickListeners();
                 },'createNewVote', true);
             });
@@ -578,11 +581,25 @@ var isHeading = function (index) {
    return false;
  }
 
+// Indicates if Etherpad is configured to display icons
+var displayIcons = function() {
+    return clientVars.displayCommentAsIcon
+}
+
+var insertIconContainer = function () {
+    if (!displayIcons()) return;
+
+    $('iframe[name=ace_outer]').contents().find("#sidediv").after('<div id="voteIcons"></div>');
+ // getPadOuter().find("#comments").addClass('with-icons');
+}
+
 exports.aceInitialized = function(hook, context){
     createVote = _(createVote).bind(context);
     closeVote = _(closeVote).bind(context);
     isHeading = _(isHeading).bind(context);
     handleVoteClose = _(handleVoteClose).bind(context);
+
+    insertIconContainer();
     var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
     padInner.on('click', function () {
         $('#inline-vote-form').hide();
@@ -645,13 +662,42 @@ exports.aceAttribClasses = function(hook, attr){
     return attr;
 }
 
-// Not sure if this is the best solution, but got overriden by other plugins so some vote items missed click handlers
-var events = [];
 exports.aceEditEvent = function(hook, call) {
     var cs = call.callstack;
-    if (events.indexOf(cs.type) === -1) {
-        events.push(cs.type);
+    if (cs.type !== 'idleWorkTimer') {
         addVoteClickListeners();
     }
 
+}
+
+var insertIcons = function (elem) {
+    var padOuter = $('iframe[name=ace_outer]').contents();
+    var padInner = padOuter.find('iframe[name="ace_inner"]');
+    var lineElem = $(elem).closest('.ace-line');
+    var paddingFrame = parseInt($(padInner).css('padding-top'));
+    var top = lineElem.find('.vote').get(0).offsetTop + parseInt($(lineElem.find('.vote').get(0)).css('padding-top')) + paddingFrame;
+    //check if container exists
+    var lineClass = 'vote-icons-line-'+lineElem.attr('id');
+    if (padOuter.find('#voteIcons').find('.vote-icons-line.'+lineClass).length === 0) {
+        padOuter.find('#voteIcons').append('<div class="vote-icons-line '+lineClass+'" style="top:' +top+ 'px;"></div>')
+    }
+    var voteId = '';
+
+    $.each($(elem)[0].classList, function (index, className) {
+        if (className.indexOf('vote-') > -1) {
+            voteId = className;
+        }
+    });
+    if (padOuter.find('#voteIcons').find('.'+lineClass).find('.vote-icon.'+voteId).length === 0)
+        padOuter.find('#voteIcons').find('.'+lineClass).append('<div class="vote-icon '+voteId+ '"></div>');
+};
+
+exports.postAceInit = function () {
+    var padOuter = $('iframe[name=ace_outer]').contents();
+    var padInner = padOuter.find('iframe[name="ace_inner"]');
+    $(padInner).contents().find('.vote').each(function (key, elem) {
+       insertIcons(elem);
+    });
+
+    addVoteClickListeners();
 }
