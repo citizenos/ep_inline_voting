@@ -1,7 +1,7 @@
 {
   "description": "Adds option to create votings on parts of text",
   "name": "ep_inline_voting",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": {
     "name": "Ilmar Türk",
     "email": "ilmar@citizenos.com"
