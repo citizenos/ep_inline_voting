@@ -1,31 +1,32 @@
-var _ = require('ep_etherpad-lite/static/js/underscore');
-var db = require('ep_etherpad-lite/node/db/DB').db;
-var ERR = require("ep_etherpad-lite/node_modules/async-stacktrace");
-var readOnlyManager = require("ep_etherpad-lite/node/db/ReadOnlyManager.js");
+'use strict';
 
-//Get Vote settings
-var getVote = function (padId, voteId, callback) {
-  db.get("votes:" + padId + ":" + voteId, function (err, vote) {
+const _ = require('ep_etherpad-lite/static/js/underscore');
+const db = require('ep_etherpad-lite/node/db/DB').db;
+const ERR = require('ep_etherpad-lite/node_modules/async-stacktrace');
+const readOnlyManager = require('ep_etherpad-lite/node/db/ReadOnlyManager.js');
+
+// Get Vote settings
+const getVote = (padId, voteId, callback) => {
+  db.get(`votes:${padId}:${voteId}`, (err, vote) => {
     callback(err, vote);
   });
 };
 
-var getVoteResult = function (padId, voteId, callback) {
-  db.get("votes:" + padId + ":" + voteId + "result", function (err, result) {
-    if(ERR(err, callback)) callback(err);
+const getVoteResult = (padId, voteId, callback) => {
+  db.get(`votes:${padId}:${voteId}result`, (err, result) => {
+    if (ERR(err, callback)) callback(err);
 
     callback(null, result);
   });
 };
 
-var getVoteCount = function (padId, voteId, authorID, callback) {
-  var count = 0;
-  var returndata = {count:0};
-  getVoteResult(padId, voteId, function (err, result) {
+const getVoteCount = (padId, voteId, authorID, callback) => {
+  const returndata = {count: 0};
+  getVoteResult(padId, voteId, (err, result) => {
     if (err) return callback(err);
-    if(!result) return callback(null, returndata);
-    _.each(Object.keys(result), function (opt) {
-      _.each(result[opt], function (vote) {
+    if (!result) return callback(null, returndata);
+    _.each(Object.keys(result), (opt) => {
+      _.each(result[opt], (vote) => {
         if (vote.author === authorID) {
           returndata.userOption = opt;
         }
@@ -38,101 +39,93 @@ var getVoteCount = function (padId, voteId, authorID, callback) {
 };
 
 // Start new vote, store it's settings and options
-exports.startVote = function(padId, data, callback)
-{
-  var voteId = data.voteId;
+exports.startVote = (padId, data, callback) => {
+  const voteId = data.voteId;
 
-  db.get("votes:" + padId, function(err, votes)
-  {
-    if(ERR(err, callback)) return;
-    //comment does not exists
-    if(votes == null) votes = [];
+  db.get(`votes:${padId}`, (err, votes) => {
+    if (ERR(err, callback)) return;
+    // comment does not exists
+    if (votes == null) votes = [];
     votes.push(data.voteId);
-    db.set("votes:" + padId, votes); //Store all pad voteIds in one array
+    db.set(`votes:${padId}`, votes); // Store all pad voteIds in one array
   });
 
-  db.set("votes:" + padId + ":" + voteId, data);
-  data.dbKey = "votes:" + padId + ":" + voteId;
+  db.set(`votes:${padId}:${voteId}`, data);
+  data.dbKey = `votes:${padId}:${voteId}`;
   callback(null, data);
 };
 
-var updateVoteSettings = function (padId, voteId, settings, callback) {
-  db.get("votes:" + padId + ":" + voteId, function (err, vote) {
+const updateVoteSettings = (padId, voteId, settings, callback) => {
+  db.get(`votes:${padId}:${voteId}`, (err, vote) => {
     if (err) return callback(err);
-    if (!vote) return callback("No vote found at: 'votes:" + padId + ":" + voteId);
-    var allowedFields = ['replace', 'closed'];
-    allowedFields.forEach(function (field) {
-        vote[field] = settings[field];
+    if (!vote) return callback(`No vote found at: 'votes:${padId}:${voteId}`);
+    const allowedFields = ['replace', 'closed'];
+    allowedFields.forEach((field) => {
+      vote[field] = settings[field];
     });
 
-    db.set("votes:" + padId + ":" + voteId, vote);
+    db.set(`votes:${padId}:${voteId}`, vote);
 
     callback(null, vote);
   });
 };
 
-//Return vote settings data
-exports.getVote = function (padId, voteId, callback)
-{
+// Return vote settings data
+exports.getVote = (padId, voteId, callback) => {
   getVote(padId, voteId, callback);
-}
-//Return all topic votes data
-var getVotes = function (padId, callback)
-{
+};
+// Return all topic votes data
+const getVotes = (padId, callback) => {
   // We need to change readOnly PadIds to Normal PadIds
-  var isReadOnly = padId.indexOf("r.") === 0;
-  if(isReadOnly){
-    readOnlyManager.getPadId(padId, function(err, rwPadId){
+  const isReadOnly = padId.indexOf('r.') === 0;
+  if (isReadOnly) {
+    readOnlyManager.getPadId(padId, (err, rwPadId) => {
       padId = rwPadId;
     });
-  };
+  }
 
-  //get list of  all topic votes
-  db.get("votes:" + padId, function(err, votes)
-  {
-    if(ERR(err, callback)) return console.error('Error', err);
+  // get list of  all topic votes
+  db.get(`votes:${padId}`, (err, votes) => {
+    if (ERR(err, callback)) return console.error('Error', err);
 
-    var voteData = {};
-    votesLoaded = 0;
-    if(votes == null) votes = [];
-    votes.forEach(function (voteId) {
-      //get settings for every vote
+    const voteData = {};
+    let votesLoaded = 0;
+    if (votes == null) votes = [];
+    votes.forEach((voteId) => {
+      // get settings for every vote
 
-      getVote(padId, voteId, function (err, vote) {
-        if(err) throw err;
+      getVote(padId, voteId, (err, vote) => {
+        if (err) throw err;
 
         voteData[voteId] = vote;
         votesLoaded++;
 
         if (votes.length === votesLoaded) {
-          callback(null, { votes: voteData });
+          callback(null, {votes: voteData});
         }
       });
     });
   });
 };
-//Delete vote
-exports.deleteVote = function (padId, voteId, callback)
-{
-  db.remove('votes:' + padId + ':' +voteId, function(err)
-  {
-    if(ERR(err, callback)) return console.error('Error', err);
+// Delete vote
+exports.deleteVote = (padId, voteId, callback) => {
+  db.remove(`votes:${padId}:${voteId}`, (err) => {
+    if (ERR(err, callback)) return console.error('Error', err);
     callback(null);
   });
 };
-//Cast user vote
-exports.addVote = function(padId, data, callback)
-{
+// Cast user vote
+exports.addVote = (padId, data, callback) => {
   // We need to change readOnly PadIds to Normal PadIds
-  var isReadOnly = padId.indexOf("r.") === 0;
-  if(isReadOnly){
-    readOnlyManager.getPadId(padId, function(err, rwPadId){
+  const isReadOnly = padId.indexOf('r.') === 0;
+  if (isReadOnly) {
+    readOnlyManager.getPadId(padId, (err, rwPadId) => {
       padId = rwPadId;
     });
-  };
-  var voteId = data.voteId;
-  //get the entry
-  getVote(padId, voteId, function (err, vote) {
+  }
+  const voteId = data.voteId;
+  // get the entry
+  getVote(padId, voteId, (err, vote) => {
     if (ERR(err, callback)) return console.error('Error', err);
 
     if (!vote) return;
@@ -141,22 +134,22 @@ exports.addVote = function(padId, data, callback)
       return callback('Voting is closed!');
     }
 
-    getVoteResult(padId, voteId, function (err, result) {
+    getVoteResult(padId, voteId, (err, result) => {
       if (ERR(err, callback)) return;
 
       if (!result) {
         result = {};
-        vote.options.forEach(function (option) {
+        vote.options.forEach((option) => {
           result[option] = [];
         });
       }
 
-      var voteId = data.voteId;
-      var authorId = data.author;
-      var option = data.value;
+      const voteId = data.voteId;
+      const authorId = data.author;
+      const option = data.value;
 
-      _.each(Object.keys(result), function (opt) {
-        _.each(result[opt], function (voteData, i) {
+      _.each(Object.keys(result), (opt) => {
+        _.each(result[opt], (voteData, i) => {
           if (voteData.author === authorId) {
             result[opt].splice(i, 1);
           }
@@ -164,25 +157,27 @@ exports.addVote = function(padId, data, callback)
       });
 
       if (result[option]) {
-        result[option].push({author: data.author, timestamp: parseInt(data.timestamp) || new Date().getTime()});
-        db.set("votes:" + padId + ":" + voteId + "result", result);
+        result[option].push({
+          author: data.author,
+          timestamp: parseInt(data.timestamp) || new Date().getTime(),
+        });
+        db.set(`votes:${padId}:${voteId}result`, result);
         callback(null, result);
       } else {
-        callback("Invalid option:" + option);
+        callback(`Invalid option:${option}`);
       }
-
     });
   });
 };
 
-exports.closePadVotes = function (padId, callback) {
-  var errors = [];
-  var success = [];
-  getVotes(padId, function (err, result) {
+exports.closePadVotes = (padId, callback) => {
+  const errors = [];
+  const success = [];
+  getVotes(padId, (err, result) => {
     if (err) return callback(err);
-    _.each(result.votes, function (vote) {
+    _.each(result.votes, (vote) => {
       if (!vote.closed) {
-        updateVoteSettings(padId, vote.voteId, {closed: true}, function (err, data) {
+        updateVoteSettings(padId, vote.voteId, {closed: true}, (err, data) => {
           if (err) {
             errors.push(err);
           } else {
@@ -193,11 +188,11 @@ exports.closePadVotes = function (padId, callback) {
     });
   });
   if (!errors.length) return callback(null, success);
-  callback(err, success);
+
+  callback(errors, success);
 };
 
 exports.getVotes = getVotes;
 exports.getVoteResult = getVoteResult;
 exports.getVoteCount = getVoteCount;
 exports.updateVoteSettings = updateVoteSettings;
-

@@ -1,703 +1,703 @@
-var _ = require('ep_etherpad-lite/static/js/underscore');
+'use strict';
 
-var loc = document.location;
-var port = loc.port == "" ? (loc.protocol == "https:" ? 443 : 80) : loc.port;
-var url = loc.protocol + "//" + loc.hostname + ":" + port + "/" + "vote";
-var socket     = io.connect(url, {forceNew: true});
-var cssFiles = ['ep_inline_voting/static/css/vote.css'];
-var Security = require('ep_etherpad-lite/static/js/security');
+const _ = require('ep_etherpad-lite/static/js/underscore');
 
-var lastLineSelectedIsEmpty = function(rep, lastLineSelected) {
-    var line = rep.lines.atIndex(lastLineSelected);
-    // when we've a line with line attribute, the first char line position
-    // in a line is 1 because of the *, otherwise is 0
-    var firstCharLinePosition = (line.lineMarker === 1) ? 1 : 0;
-    var lastColumnSelected = rep.selEnd[1];
+const loc = document.location;
+const port = loc.port === '' ? (loc.protocol === 'https:' ? 443 : 80) : loc.port;
+const url = `${loc.protocol}//${loc.hostname}:${port}/` + 'vote';
+const socket = io.connect(url, {forceNew: true});
+const cssFiles = ['ep_inline_voting/static/css/vote.css'];
+const Security = require('ep_etherpad-lite/static/js/security');
 
-    return lastColumnSelected === firstCharLinePosition;
-}
+const lastLineSelectedIsEmpty = (rep, lastLineSelected) => {
+  const line = rep.lines.atIndex(lastLineSelected);
+  // when we've a line with line attribute, the first char line position
+  // in a line is 1 because of the *, otherwise is 0
+  const firstCharLinePosition = (line.lineMarker === 1) ? 1 : 0;
+  const lastColumnSelected = rep.selEnd[1];
 
-var getAuthorName = function (authorID) {
-    var authors = clientVars.collab_client_vars.historicalAuthorData;
-    if (authors[authorID]) {
-        return authors[authorID].name;
-    }
-
-    return null;
+  return lastColumnSelected === firstCharLinePosition;
 };
 
-var getLastLine = function(rep) {
-    var firstLine = rep.selStart[0];
-    var lastLineSelected = rep.selEnd[0];
-
-    if (lastLineSelected > firstLine){
-      // Ignore last line if the selected text of it it is empty
-      if(lastLineSelectedIsEmpty(rep, lastLineSelected)){
-        lastLineSelected--;
-      }
-    }
-    return lastLineSelected;
-}
-
-function getYOffsetOfRep(rep){
-    var padOuter = $('iframe[name="ace_outer"]');
-    var padInner = padOuter.contents().find('iframe[name="ace_inner"]');
-    var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
-
-    // Get the target Line
-    var index = getLastLine(rep);
-    var line = rep.lines.atIndex(index);
-    var divEl = $(line.lineNode);
-
-    // Is the line visible yet?
-    if ( divEl.length !== 0 ) {
-      var top = divEl.offset().top + divEl.height() + topCorrection; // A standard generic offset
-
-      return top;
-    }
-}
-
-var cloneLine = function (line) {
-    var padOuter = $('iframe[name="ace_outer"]').contents();
-    var padInner = padOuter.find('iframe[name="ace_inner"]');
-
-    var lineElem = $(line.lineNode);
-    var lineClone = lineElem.clone();
-    var innerdocbodyMargin = $(lineElem).parent().css("margin-left") || 0;
-    padInner.contents().find('body').append(lineClone);
-    lineClone.css({position: 'absolute'});
-    lineClone.css(lineElem.offset());
-    lineClone.css({color:'red'});
-    lineClone.css({left: innerdocbodyMargin});
-    lineClone.width(lineElem.width());
-
-    return lineClone;
-};
-// Given a rep we get the X and Y px offset
-function getXYOffsetOfRep(element, rep){
-    var viewPosition = 'bottom';
-    var clone;
-    var selStart = rep.selStart
-    var selEnd = rep.selEnd;
-    var startIndex = 0;
-    var endIndex = 0;
-
-    if (selStart[0] > selEnd [0] || (selStart[0] === selEnd[0] && selStart[1] > selEnd[1])) { //make sure end is after start
-      var startPos = _.clone(selStart);
-      selEnd = selStart;
-      selStart = startPos;
-    }
-
-    var padOuter = $('iframe[name="ace_outer"]').contents();
-    var padInner = padOuter.find('iframe[name="ace_inner"]');
-
-    // Get the target Line
-    var startLine = rep.lines.atIndex(selStart[0]);
-    var endLine = rep.lines.atIndex(selEnd[0]);
-    var leftOffset = $(padInner)[0].offsetLeft + $('iframe[name="ace_outer"]')[0].offsetLeft + parseInt(padInner.css('padding-left'));
-    if($(padInner)[0]){
-      leftOffset = leftOffset +3; // it appears on apple devices this might not be set properly?
-    }
-    // Add support for page view margins
-    var divMargin = $(startLine.lineNode).css("margin-left");
-    var innerdocbodyMargin = parseInt($(startLine.lineNode).parent().css("margin-left")) || 0;
-    var lineText = [];
-    var lineIndex = 0;
-
-    if (viewPosition === 'top') {
-      startIndex = selStart[1];
-      lineIndex = selStart[0];
-      lineText = Security.escapeHTML($(startLine.lineNode).text()).split('');
-      endIndex = lineText.length-1;
-      clone = cloneLine(startLine);
-      if (selStart[0] === selEnd[0]) {
-        endIndex = selEnd[1];
-      }
-    } else {
-      endIndex = selEnd[1];
-      lineIndex = selEnd[0];
-      lineText = Security.escapeHTML($(endLine.lineNode).text()).split('');
-      clone = cloneLine(endLine);
-      if (selStart[0] === selEnd[0]) {
-        startIndex = selStart[1];
-      }
-    }
-
-    lineText.splice(endIndex, 0, '</span>');
-    lineText.splice(startIndex, 0, '<span id="selectWorker">');
-    lineText = lineText.join('');
-    var itemMargin = parseInt(element.children().css('margin-left'));
-    var heading = isHeading(lineIndex);
-    if (heading) {
-      lineText = '<' + heading + '>' + lineText + '</' + heading + '>';
-    }
-    $(clone).html(lineText);
-
-    // Is the line visible yet?
-    if ( $(startLine.lineNode).length !== 0 ) {
-
-      var worker =  $(clone).find('#selectWorker');
-      var top = worker.offset().top + padInner.offset().top + parseInt(padInner.css('padding-top')); // A standard generic offset'
-      var left = (worker.offset().left || 0) + leftOffset + itemMargin + $(worker).width()/2 - element.width()/2;
-
-      //adjust position
-      if (viewPosition === 'top') {
-        top = top - element[0].offsetHeight;
-        if(top <= 0 ) {  // If the tooltip wont be visible to the user because it's too high up
-          top = top + worker[0].offsetHeight;
-          if(top < 0){ top = 0; } // handle case where caret is in 0,0
-        }
-      } else if (viewPosition === 'bottom') {
-        top = top + worker[0].offsetHeight;
-      } else if (viewPosition === 'right') {
-        left = worker.offset().left + worker[0].offsetWidth + leftOffset + itemMargin;
-        top = top +(worker[0].offsetHeight/2);
-      } else if (viewPosition === 'left') {
-        left = 0;
-        if (divMargin) {
-          divMargin = parseInt(divMargin);
-          if ((divMargin + innerdocbodyMargin) > 0) {
-            left = left + divMargin;
-          }
-        }
-        left = left - worker.width();
-        top  = top +(worker[0].offsetHeight/2);
-      }
-
-      // Remove the clone element
-      $(clone).remove();
-      return [left, top];
-    }
-}
-
-// Draws the toolbar onto the screen
-function drawAt(element, XY){
-    element.show();
-    element.addClass('popup-show');
-    element.css({
-      "position": "absolute",
-      "left": XY[0],
-      "top": XY[1]
-    });
-}
-
-var buildUserVote = function(voteId, option) {
-    var vote = {};
-
-    vote.voteId = voteId;
-    vote.value = option;
-    vote.padId = clientVars.padId;
-    vote.author = clientVars.userId;
-    vote.createdAt = new Date().getTime();
-
-    return vote;
+const getAuthorName = (authorID) => {
+  const authors = clientVars.collab_client_vars.historicalAuthorData;
+  if (authors[authorID]) {
+    return authors[authorID].name;
   }
 
-var vote = function (voteId) {
-    var option = $('.vote-option-radio:checked').val();
-    if (voteId && option) {
-        var vote = buildUserVote(voteId, option);
-        socket.emit('addVote', vote, function (err, vote){
-        if (err) return console.error(err);
-        });
+  return null;
+};
+
+const getLastLine = (rep) => {
+  const firstLine = rep.selStart[0];
+  let lastLineSelected = rep.selEnd[0];
+
+  if (lastLineSelected > firstLine) {
+    // Ignore last line if the selected text of it it is empty
+    if (lastLineSelectedIsEmpty(rep, lastLineSelected)) {
+      lastLineSelected--;
+    }
+  }
+  return lastLineSelected;
+};
+
+let isHeading = function (index) {
+  const attribs = this.documentAttributeManager.getAttributesOnLine(index);
+  for (let i = 0; i < attribs.length; i++) {
+    if (attribs[i][0] === 'heading') {
+      const value = attribs[i][1];
+      i = attribs.length;
+      return value;
+    }
+  }
+  return false;
+};
+
+const cloneLine = (line) => {
+  const padOuter = $('iframe[name="ace_outer"]').contents();
+  const padInner = padOuter.find('iframe[name="ace_inner"]');
+
+  const lineElem = $(line.lineNode);
+  const lineClone = lineElem.clone();
+  const innerdocbodyMargin = $(lineElem).parent().css('margin-left') || 0;
+  padInner.contents().find('body').append(lineClone);
+  lineClone.css({position: 'absolute'});
+  lineClone.css(lineElem.offset());
+  lineClone.css({color: 'red'});
+  lineClone.css({left: innerdocbodyMargin});
+  lineClone.width(lineElem.width());
+
+  return lineClone;
+};
+// Given a rep we get the X and Y px offset
+const getXYOffsetOfRep = (element, rep) => {
+  const viewPosition = 'bottom';
+  let clone;
+  let selStart = rep.selStart;
+  let selEnd = rep.selEnd;
+  let startIndex = 0;
+  let endIndex = 0;
+
+  // make sure end is after start
+  if (selStart[0] > selEnd[0] || (selStart[0] === selEnd[0] && selStart[1] > selEnd[1])) {
+    const startPos = _.clone(selStart);
+    selEnd = selStart;
+    selStart = startPos;
+  }
+
+  const padOuter = $('iframe[name="ace_outer"]').contents();
+  const padInner = padOuter.find('iframe[name="ace_inner"]');
+
+  // Get the target Line
+  const startLine = rep.lines.atIndex(selStart[0]);
+  const endLine = rep.lines.atIndex(selEnd[0]);
+  const padInnerPadding = parseInt(padInner.css('padding-left'));
+  const padInnerOffset = $(padInner)[0].offsetLeft;
+
+  let leftOffset = padInnerOffset + $('iframe[name="ace_outer"]')[0].offsetLeft + padInnerPadding;
+  if ($(padInner)[0]) {
+    leftOffset += 3; // it appears on apple devices this might not be set properly?
+  }
+  // Add support for page view margins
+  let divMargin = $(startLine.lineNode).css('margin-left');
+  const innerdocbodyMargin = parseInt($(startLine.lineNode).parent().css('margin-left')) || 0;
+  let lineText = [];
+  let lineIndex = 0;
+
+  if (viewPosition === 'top') {
+    startIndex = selStart[1];
+    lineIndex = selStart[0];
+    lineText = Security.escapeHTML($(startLine.lineNode).text()).split('');
+    endIndex = lineText.length - 1;
+    clone = cloneLine(startLine);
+    if (selStart[0] === selEnd[0]) {
+      endIndex = selEnd[1];
+    }
+  } else {
+    endIndex = selEnd[1];
+    lineIndex = selEnd[0];
+    lineText = Security.escapeHTML($(endLine.lineNode).text()).split('');
+    clone = cloneLine(endLine);
+    if (selStart[0] === selEnd[0]) {
+      startIndex = selStart[1];
+    }
+  }
+
+  lineText.splice(endIndex, 0, '</span>');
+  lineText.splice(startIndex, 0, '<span id="selectWorker">');
+  lineText = lineText.join('');
+  const itemMargin = parseInt(element.children().css('margin-left'));
+  const heading = isHeading(lineIndex);
+  if (heading) {
+    lineText = `<${heading}>${lineText}</${heading}>`;
+  }
+  $(clone).html(lineText);
+
+  // Is the line visible yet?
+  if ($(startLine.lineNode).length !== 0) {
+    const worker = $(clone).find('#selectWorker');
+    // A standard generic offset'
+    const workerOffset = worker.offset();
+    const workerW = $(worker).width();
+    const elemW = element.width();
+    let top = workerOffset.top + padInner.offset().top + parseInt(padInner.css('padding-top'));
+    let left = (workerOffset.left || 0) + leftOffset + itemMargin + workerW / 2 - elemW / 2;
+
+    // adjust position
+    if (viewPosition === 'top') {
+      top -= element[0].offsetHeight;
+      if (top <= 0) { // If the tooltip wont be visible to the user because it's too high up
+        top += worker[0].offsetHeight;
+        if (top < 0) { top = 0; } // handle case where caret is in 0,0
+      }
+    } else if (viewPosition === 'bottom') {
+      top += worker[0].offsetHeight;
+    } else if (viewPosition === 'right') {
+      left = worker.offset().left + worker[0].offsetWidth + leftOffset + itemMargin;
+      top += (worker[0].offsetHeight / 2);
+    } else if (viewPosition === 'left') {
+      left = 0;
+      if (divMargin) {
+        divMargin = parseInt(divMargin);
+        if ((divMargin + innerdocbodyMargin) > 0) {
+          left += divMargin;
+        }
+      }
+      left -= worker.width();
+      top += (worker[0].offsetHeight / 2);
     }
 
-    $('#inline-vote-form').hide();
-    $('#inline-vote-form').removeClass('popup-show');
-    return false;
-}
+    // Remove the clone element
+    $(clone).remove();
+    return [left, top];
+  }
+};
 
-exports.aceEditorCSS = function(){
-    return cssFiles;
-}
-exports.postToolbarInit = function (hookName, args) {
-    var editbar = args.toolbar;
+// Draws the toolbar onto the screen
+const drawAt = (element, XY) => {
+  element.show();
+  element.addClass('popup-show');
+  element.css({
+    position: 'absolute',
+    left: XY[0],
+    top: XY[1],
+  });
+};
 
-    editbar.registerCommand('createVote', function () {
-      createVote();
-      addVoteClickListeners();
+const buildUserVote = (voteId, option) => {
+  const vote = {};
+
+  vote.voteId = voteId;
+  vote.value = option;
+  vote.padId = clientVars.padId;
+  vote.author = clientVars.userId;
+  vote.createdAt = new Date().getTime();
+
+  return vote;
+};
+
+const vote = (voteId) => {
+  const option = $('.vote-option-radio:checked').val();
+  if (voteId && option) {
+    const vote = buildUserVote(voteId, option);
+    socket.emit('addVote', vote, (err, vote) => {
+      if (err) return console.error(err);
     });
+  }
+
+  $('#inline-vote-form').hide();
+  $('#inline-vote-form').removeClass('popup-show');
+  return false;
 };
 
-var getDateTimeString = function(timestamp) {
-    var d = new Date(timestamp);
-    return d.getDate() +'/'+ (d.getMonth()+1) + '/' + d.getFullYear() + ' '  + d.getHours() + ':' + ('0' + d.getMinutes()).substr(-2);
+const getDateTimeString = (timestamp) => {
+  const d = new Date(timestamp);
+
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${d.getHours()}:${(`0${d.getMinutes()}`).substr(-2)}`;
 };
 
-var getVoteCount = function (voteId) {
-    var padOuter = $('iframe[name="ace_outer"]');
-    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
+const _getXY = (voteId) => {
+  const padOuter = $('iframe[name="ace_outer"]');
+  const padInner = padOuter.contents().find('body').find('iframe[name="ace_inner"]');
+  const outOffset = padOuter.offset();
+  const topPadding = parseInt(padOuter.css('padding-top'));
+  const topMargin = parseInt(padOuter.css('margin-top'));
+  const correction = outOffset.top + padInner.offset().top + topPadding + topMargin;
+  const h = padInner.contents().find(`.${voteId}`).height();
+  return [
+    padInner.offset().left + padInner.contents().find(`.${voteId}`).offset().left,
+    padInner.contents().find(`.${voteId}`).offset().top + h + correction,
+  ];
+};
 
-    socket.emit('getVoteSettings', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, voteSettings) {
-        socket.emit('getVoteCount', {padId: clientVars.padId, voteId, authorID: clientVars.userId}, function (err, result) {
-            var countHTML = html10n.get('ep_inline_voting.total_votes', {'count': result.count});
-            $('#vote-count').text(countHTML);
-            $('#creator-name').text(getAuthorName(voteSettings.author));
-            $('#create-time').text(getDateTimeString(voteSettings.createdAt));
-            $('#description-content').text(voteSettings.description);
+const getVoteCount = (voteId) => {
+  socket.emit('getVoteSettings',
+      {
+        padId: clientVars.padId,
+        voteId, authorID: clientVars.userId,
+      }, (err, voteSettings) => {
+        socket.emit('getVoteCount',
+            {
+              padId: clientVars.padId,
+              voteId, authorID: clientVars.userId,
+            }, (err, result) => {
+              const countHTML = html10n.get('ep_inline_voting.total_votes', {count: result.count});
+              $('#vote-count').text(countHTML);
+              $('#creator-name').text(getAuthorName(voteSettings.author));
+              $('#create-time').text(getDateTimeString(voteSettings.createdAt));
+              $('#description-content').text(voteSettings.description);
 
-            var itemHtml = "";
-            _.each(voteSettings.options, function (option) {
-                var userVote = false;
+              let itemHtml = '';
+              _.each(voteSettings.options, (option) => {
+                let userVote = false;
                 if (result.userOption && result.userOption === option) {
-                    userVote = true;
+                  userVote = true;
                 }
 
-                itemHtml += '<div class="option-wrap"> \
-                    <div class="option-result-bar-wrap"> \
-                        <label class="container"> \
-                            <input class="vote-option-radio" type="radio" name="option" value="'+option+'" '+ ((userVote)? 'checked' :'') +' /> \
-                            <span class="checkmark"></span> \
-                            <div class="option-value-active">'+option+'</div> \
-                        </label> \
-                    </div> \
-                </div>'
-            });
-
-            $('#vote-options-list').html(itemHtml);
-
-            var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
-            var h = padInner.contents().find('.'+voteId).height();
-            var XY= [padInner.offset().left + padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
-
-            $('#inline-vote-settings').hide();
-            $('#inline-vote-settings').removeClass('popup-show');
-            drawAt($('#inline-vote-form'), XY);
-        });
-    });
-};
-
-var getVoteResult = function (voteId) {
-    var padOuter = $('iframe[name="ace_outer"]');
-    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
-
-    socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
-        if (err) {
-            return console.error(err);
-        }
-
-        $('#creator-name').text(getAuthorName(voteSettings.author));
-        $('#create-time').text(getDateTimeString(voteSettings.createdAt));
-        $('#description-content').text(voteSettings.description);
-
-        socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
-            if (err) console.error(err)
-            var itemHtml = '';
-            var totalVotes = 0;
-
-            $.each(Object.keys(result), function (key, item) {
-                totalVotes += result[item].length;
-            });
-
-            $.each(Object.keys(result), function (key, item) {
-                var vcount = 0;
-                var userVote = false;
-                if (result && result[item]) {
-                    vcount = result[item].length;
-                    result[item].filter(function (voter) {
-                        if (voter.author == clientVars.userId) {
-                            userVote = true;
-                        }
-                    })
-                }
-                var barLength = 0;
-                var resultText = item;
-                var valueText = "";
-                if (voteSettings && voteSettings.closed) {
-                    barLength = ((vcount/totalVotes * 100) || 1) + ((vcount/totalVotes)? '%': 'px');
-                    resultText = (vcount || 0 );
-                    valueText = item;
-                    $('#vote-form-buttons-wrap').hide();
-                }
-
-                itemHtml += '<div class="option-wrap"> \
-                    <div class="option-result-bar-wrap"> \
-                        <label class="container"> \
-                            <input class="vote-option-radio" type="radio" name="option" value="'+item+'" '+ ((userVote)? 'checked' :'') +' /> \
-                            <span class="checkmark"></span> \
-                            <div class="option-result-bar"> \
-                                <div class="option-result-fill" style="width:' + barLength + ';"> \
-                                    <div class="option-result-votes">' +resultText+  '</div> \
-                                </div> \
+                itemHtml += `<div class="option-wrap"> \
+                            <div class="option-result-bar-wrap"> \
+                                <label class="container"> \
+                                    <input \
+                                          class="vote-option-radio" type="radio" \
+                                          name="option" \
+                                          value="${option}" ${(userVote) ? 'checked' : ''} \
+                                    /> \
+                                    <span class="checkmark"></span> \
+                                    <div class="option-value-active">${option}</div> \
+                                </label> \
                             </div> \
-                        </label> \
-                        <div class="option-value">'+valueText+'</div> \
-                    </div> \
-                </div>'
-            });
+                        </div>`;
+              });
 
-            $('#vote-options-list').html(itemHtml);
-            if (voteSettings && voteSettings.closed) {
-                $('.vote-option-radio').attr('disabled', true);
+              $('#vote-options-list').html(itemHtml);
+              $('#inline-vote-settings').hide();
+              $('#inline-vote-settings').removeClass('popup-show');
+              drawAt($('#inline-vote-form'), _getXY(voteId));
+            });
+      });
+};
+
+const getVoteResult = (voteId) => {
+  socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, (err, voteSettings) => {
+    if (err) {
+      return console.error(err);
+    }
+
+    $('#creator-name').text(getAuthorName(voteSettings.author));
+    $('#create-time').text(getDateTimeString(voteSettings.createdAt));
+    $('#description-content').text(voteSettings.description);
+
+    socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, (err, result) => {
+      if (err) console.error(err);
+      let itemHtml = '';
+      let totalVotes = 0;
+
+      $.each(Object.keys(result), (key, item) => {
+        totalVotes += result[item].length;
+      });
+
+      $.each(Object.keys(result), (key, item) => {
+        let vcount = 0;
+        let userVote = false;
+        if (result && result[item]) {
+          vcount = result[item].length;
+          result[item].filter((voter) => {
+            if (voter.author === clientVars.userId) {
+              userVote = true;
             }
-            var topCorrection = padOuter.offset().top + padInner.offset().top + parseInt(padOuter.css('padding-top')) + parseInt(padOuter.css('margin-top'));
-            var h = padInner.contents().find('.'+voteId).height();
-            var XY = [padInner.offset().left + padInner.contents().find('.'+voteId).offset().left, padInner.contents().find('.'+voteId).offset().top + h + topCorrection];
-            $('#inline-vote-settings').hide();
-            $('#inline-vote-settings').removeClass('popup-show');
-            drawAt($('#inline-vote-form'), XY);
-        });
+          });
+        }
+        let barLength = 0;
+        let resultText = item;
+        let valueText = '';
+        if (voteSettings && voteSettings.closed) {
+          barLength = ((vcount / totalVotes * 100) || 1) + ((vcount / totalVotes) ? '%' : 'px');
+          resultText = (vcount || 0);
+          valueText = item;
+          $('#vote-form-buttons-wrap').hide();
+        }
+
+        itemHtml += `<div class="option-wrap">
+                    <div class="option-result-bar-wrap">
+                        <label class="container">
+                            <input
+                              class="vote-option-radio"
+                              type="radio" name="option"
+                              value="${item}" ${(userVote) ? 'checked' : ''}
+                            />
+                            <span class="checkmark"></span>
+                            <div class="option-result-bar">
+                                <div class="option-result-fill" style="width:${barLength};">
+                                    <div class="option-result-votes">${resultText}</div>
+                                </div>
+                            </div>
+                        </label>
+                        <div class="option-value">${valueText}</div>
+                    </div>
+                </div>`;
+      });
+
+      $('#vote-options-list').html(itemHtml);
+      if (voteSettings && voteSettings.closed) {
+        $('.vote-option-radio').attr('disabled', true);
+      }
+      $('#inline-vote-settings').hide();
+      $('#inline-vote-settings').removeClass('popup-show');
+      drawAt($('#inline-vote-form'), _getXY(voteId));
     });
+  });
 };
 
-var addVoteClickListeners = function () {
-    var padOuter = $('iframe[name="ace_outer"]');
-    var padInner = padOuter.contents().find("body").find('iframe[name="ace_inner"]');
+const addVoteClickListeners = () => {
+  const padOuter = $('iframe[name="ace_outer"]');
+  const padInner = padOuter.contents().find('body').find('iframe[name="ace_inner"]');
 
-    var voteClickListeners = function (key, elem) {
-        $(elem).off();
-        $(elem).on('click', function (e) {
-            $('#vote-form-buttons-wrap').show();
-            $('.vote-option-radio').attr('disabled', false);
-            var voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
-            $('#close-vote').off();
-            $('#close-vote').on('click', function (e) {
-                handleVoteClose(voteId, e);
-            });
-            $('#save-vote').off();
-            $('#save-vote').on('click', function () {
-                vote(voteId);
-            });
-            if (voteId) {
-                socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteSettings){
-                    if (err) {
-                        return console.error(err);
-                    }
-
-                    if (voteSettings.closed) {
-                        getVoteResult(voteId);
-
-                    } else  {
-                        getVoteCount(voteId);
-                    }
-                });
-            }
-
-        });
-    };
-
-    $(padOuter).contents().find('.vote-icon').each(voteClickListeners);
-    $(padInner).contents().find('.vote').each(voteClickListeners);
-};
-
-var closeVote  = function (padId, voteId) {
-    var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
-    var self = this;
-    var editorInfo = self.editorInfo;
-
-    socket.emit('updateVoteSettings', {padId, voteId, settings: {closed: true}}, function () {
-        var rep = editorInfo.ace_getRepFromSelector('.'+voteId, padInner);
-        self.editorInfo.ace_callWithAce(function (ace){
-            ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
-            ace.ace_setAttributeOnSelection('voteClosed', true);
-            $('#inline-vote-settings').hide();
-            $('#inline-vote-settings').removeClass('popup-show');
-            addVoteClickListeners();
-        },'closeVote', true);
-    });
-};
-
-var handleVoteClose = function (voteId, triger) {
-    socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, function (err, voteData) {
-        if (err) {
+  const voteClickListeners = (key, elem) => {
+    $(elem).off();
+    $(elem).on('click', (e) => {
+      $('#vote-form-buttons-wrap').show();
+      $('.vote-option-radio').attr('disabled', false);
+      const voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
+      $('#close-vote').off();
+      $('#close-vote').on('click', (e) => {
+        handleVoteClose(voteId, e);
+      });
+      $('#save-vote').off();
+      $('#save-vote').on('click', () => {
+        vote(voteId);
+      });
+      if (voteId) {
+        socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, (err, voteSettings) => {
+          if (err) {
             return console.error(err);
-        }
+          }
 
-        socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, function (err, result) {
-            if (err) console.error(err)
-
-            var winner = null;
-            var votecount = 0;
-            $.each(result, function (key, item) {
-                if (!winner || item.length > votecount) {
-                    winner = key;
-                    votecount = item.length;
-                } else if (winner && votecount > 0 && item.length === votecount) {
-                    winner = null;
-                    $.gritter.add({
-                        title: "Error",
-                        text: "Vote cannot be closed, tie",
-                        class_name: "error"
-                    });
-                    return;
-                }
-            });
-
-            if (winner) {
-                var XY = [$(triger.target).closest('.popup').offset().left, $(triger.target).closest('.popup').offset().top];
-                drawAt($("#close_confirm"), XY)
-                $('#vote_selected_text').html(voteData.selectedText);
-                $('#vote_winner_text').html(winner);
-                $("#vote_button_keep").on('click', function () {
-                    closeVote(clientVars.padId, voteId);
-                    $("#close_confirm").hide();
-                    $("#close_confirm").removeClass('popup-show');
-                    $("#inline-vote-form").hide();
-                    $("#inline-vote-form").removeClass('popup-show');
-                });
-
-                $("#vote_button_replace").on('click', function () {
-                    var padOuter = $('iframe[name="ace_outer"]').contents();
-                    var padInner = padOuter.find('iframe[name="ace_inner"]');
-
-                    var padVoteContent = padInner.contents().find("."+voteData.voteId).first();
-                    winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
-
-                    $(padVoteContent).html(winner);
-                    $("#close_confirm").hide();
-                    $("#close_confirm").removeClass('popup-show');
-                    $("#inline-vote-form").hide();
-                    $("#inline-vote-form").removeClass('popup-show');
-                    closeVote(clientVars.padId, voteId);
-                });
-            }
+          if (voteSettings.closed) {
+            getVoteResult(voteId);
+          } else {
+            getVoteCount(voteId);
+          }
         });
+      }
     });
+  };
+
+  $(padOuter).contents().find('.vote-icon').each(voteClickListeners);
+  $(padInner).contents().find('.vote').each(voteClickListeners);
 };
 
-var lastLineSelectedIsEmpty = function(rep, lastLineSelected){
-    var line = rep.lines.atIndex(lastLineSelected);
-    // when we've a line with line attribute, the first char line position
-    // in a line is 1 because of the *, otherwise is 0
-    var firstCharLinePosition = (line.lineMarker === 1) ? 1 : 0;
-    var lastColumnSelected = rep.selEnd[1];
+let closeVote = function (padId, voteId) {
+  const padOuter = $('iframe[name=ace_outer]').contents();
+  const padInner = padOuter.find('iframe[name=ace_inner]').contents().find('body');
+  const editorInfo = this.editorInfo;
 
-    return lastColumnSelected === firstCharLinePosition;
+  socket.emit('updateVoteSettings', {padId, voteId, settings: {closed: true}}, () => {
+    const rep = editorInfo.ace_getRepFromSelector(`.${voteId}`, padInner);
+    editorInfo.ace_callWithAce((ace) => {
+      ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
+      ace.ace_setAttributeOnSelection('voteClosed', true);
+      $('#inline-vote-settings').hide();
+      $('#inline-vote-settings').removeClass('popup-show');
+      addVoteClickListeners();
+    }, 'closeVote', true);
+  });
 };
 
-var getSelectedText = function(rep) {
-    var self = this;
-    var firstLine = rep.selStart[0];
-    var lastLine = getLastLine(rep);
-    var selectedText = "";
+const handleVoteClose = (voteId, triger) => {
+  socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, (err, voteData) => {
+    if (err) {
+      return console.error(err);
+    }
 
-    _(_.range(firstLine, lastLine + 1)).each(function(lineNumber){
-       var line = rep.lines.atIndex(lineNumber);
-       // If we span over multiple lines
-       if(rep.selStart[0] === lineNumber){
-         // Is this the first line?
-         if(rep.selStart[1] > 0){
-           var posStart = rep.selStart[1];
-         }else{
-           var posStart = 0;
-         }
-       }
-       if(rep.selEnd[0] === lineNumber){
-         if(rep.selEnd[1] <= line.text.length){
-           var posEnd = rep.selEnd[1];
-         }else{
-           var posEnd = 0;
-         }
-       }
-       var lineText = line.text.substring(posStart, posEnd);
-       // When it has a selection with more than one line we select at least the beginning
-       // of the next line after the first line. As it is not possible to select the beginning
-       // of the first line, we skip it.
-       if(lineNumber > firstLine){
-        // if the selection takes the very beginning of line, and the element has a lineMarker,
-        // it means we select the * as well, so we need to clean it from the text selected
-        lineText = self.cleanLine(line, lineText);
-        lineText = '\n' + lineText;
-       }
-       selectedText += lineText;
-    });
+    socket.emit('getVoteResult', {padId: clientVars.padId, voteId}, (err, result) => {
+      if (err) console.error(err);
 
-    return selectedText;
-};
-
-var createVote = function() {
-    var self = this;
-    var rep = self.rep;
-    var now = new Date().getTime();
-    var defaultOptionText = getSelectedText(rep);
-
-    $('#vote-description-area').val("");
-    $('#vote-description-area').attr("placeholder", html10n.get('ep_inline_voting.vote_title_label'));
-    var XY = getXYOffsetOfRep($('#inline-vote-settings'), rep);
-    $('#inline-vote-form').hide();
-    $("#inline-vote-form").removeClass('popup-show');
-    $('#close_confirm').hide();
-    $('#close_confirm').removeClass('popup-show');
-    drawAt($('#inline-vote-settings'), XY);
-
-    var itemCount = 0;
-    $('.vote-option-input').each(function (key, item) {
-        itemCount++;
-        item.value = '';
-        if (itemCount > 2) {
-            item.remove();
+      let winner = null;
+      let votecount = 0;
+      $.each(result, (key, item) => {
+        if (!winner || item.length > votecount) {
+          winner = key;
+          votecount = item.length;
+        } else if (winner && votecount > 0 && item.length === votecount) {
+          winner = null;
+          $.gritter.add({
+            title: 'Error',
+            text: 'Vote cannot be closed, tie',
+            class_name: 'error',
+          });
+          return;
         }
-    });
-    $('#vote-option-1').val(defaultOptionText);
-    $('#start-vote').off();
-    $('#start-vote').on('click', function () {
-        var options = [];
-        var description = $('#vote-description-area').val() || "";
-        $('.vote-option-input').each(function (key, item) {
-            if (item.value) {
-                options.push(item.value);
-            }
+      });
+
+      if (winner) {
+        const XY = [
+          $(triger.target).closest('.popup').offset().left,
+          $(triger.target).closest('.popup').offset().top,
+        ];
+
+        drawAt($('#close_confirm'), XY);
+        $('#vote_selected_text').html(voteData.selectedText);
+        $('#vote_winner_text').html(winner);
+        $('#vote_button_keep').on('click', () => {
+          closeVote(clientVars.padId, voteId);
+          $('#close_confirm').hide();
+          $('#close_confirm').removeClass('popup-show');
+          $('#inline-vote-form').hide();
+          $('#inline-vote-form').removeClass('popup-show');
         });
-        var voteId = 'vote-' + now; //Get more uniqueID
-        var voteData = {
-            voteId,
-            createdAt: now,
-            description,
-            options,
-            selectedText: defaultOptionText,
-            padId: clientVars.padId,
-            author: clientVars.userId,
-            closed: false
-        };
 
-        if (options.length && options.length > 1) {
-            socket.emit('startVote', voteData, function (err, data){
-                self.editorInfo.ace_callWithAce(function (ace){
-                    ace.ace_performSelectionChange(rep.selStart, rep.selEnd, true);
-                    ace.ace_setAttributeOnSelection(voteId, true);
-                    ace.ace_setAttributeOnSelection('vote', true);
-                    $('#inline-vote-settings').hide();
-                    $("#inline-vote-settings").removeClass('popup-show');
-                    var elem = $('iframe[name=ace_outer]').contents().find('iframe[name="ace_inner"]').contents().find('.vote.'+voteId);
-                    insertIcons(elem);
-                    addVoteClickListeners();
-                },'createNewVote', true);
-            });
-        }
-        $('#inline-vote-settings').hide();
-        addVoteClickListeners();
+        $('#vote_button_replace').on('click', () => {
+          const padOuter = $('iframe[name="ace_outer"]').contents();
+          const padInner = padOuter.find('iframe[name="ace_inner"]');
+
+          const padVoteContent = padInner.contents().find(`.${voteData.voteId}`).first();
+          winner = winner.replace(/(?:\r\n|\r)/g, '<br />');
+
+          $(padVoteContent).html(winner);
+          $('#close_confirm').hide();
+          $('#close_confirm').removeClass('popup-show');
+          $('#inline-vote-form').hide();
+          $('#inline-vote-form').removeClass('popup-show');
+          closeVote(clientVars.padId, voteId);
+        });
+      }
     });
-}
+  });
+};
 
-var isHeading = function (index) {
-    var attribs = this.documentAttributeManager.getAttributesOnLine(index);
-   for (var i=0; i<attribs.length; i++) {
-     if (attribs[i][0] === 'heading') {
-       var value = attribs[i][1];
-       i = attribs.length;
-       return value;
-     }
-   }
-   return false;
- }
+const getSelectedText = function (rep) {
+  const self = this;
+  const firstLine = rep.selStart[0];
+  const lastLine = getLastLine(rep);
+  let selectedText = '';
+  let posStart = 0;
+  let posEnd = 0;
+  _(_.range(firstLine, lastLine + 1)).each((lineNumber) => {
+    const line = rep.lines.atIndex(lineNumber);
+    // If we span over multiple lines
+    if (rep.selStart[0] === lineNumber) {
+      // Is this the first line?
+      if (rep.selStart[1] > 0) {
+        posStart = rep.selStart[1];
+      }
+    }
+    if (rep.selEnd[0] === lineNumber) {
+      if (rep.selEnd[1] <= line.text.length) {
+        posEnd = rep.selEnd[1];
+      }
+    }
+    let lineText = line.text.substring(posStart, posEnd);
+    // When it has a selection with more than one line we select at least the beginning
+    // of the next line after the first line. As it is not possible to select the beginning
+    // of the first line, we skip it.
+    if (lineNumber > firstLine) {
+      // if the selection takes the very beginning of line, and the element has a lineMarker,
+      // it means we select the * as well, so we need to clean it from the text selected
+      lineText = self.cleanLine(line, lineText);
+      lineText = `\n${lineText}`;
+    }
+    selectedText += lineText;
+  });
+
+  return selectedText;
+};
 
 // Indicates if Etherpad is configured to display icons
-var displayIcons = function() {
-    return clientVars.displayCommentAsIcon
-}
+const displayIcons = () => clientVars.displayCommentAsIcon;
 
-var insertIconContainer = function () {
-    if (!displayIcons()) return;
+const insertIconContainer = () => {
+  if (!displayIcons()) return;
 
-    $('iframe[name=ace_outer]').contents().find("#sidediv").after('<div id="voteIcons"></div>');
- // getPadOuter().find("#comments").addClass('with-icons');
-}
-
-exports.aceInitialized = function(hook, context){
-    createVote = _(createVote).bind(context);
-    closeVote = _(closeVote).bind(context);
-    isHeading = _(isHeading).bind(context);
-    handleVoteClose = _(handleVoteClose).bind(context);
-
-    insertIconContainer();
-    var padInner = $('iframe[name=ace_outer]').contents().find('iframe[name=ace_inner]').contents().find('body');
-    padInner.on('click', function () {
-        $('#inline-vote-form').hide();
-        $("#inline-vote-form").removeClass('popup-show');
-        $('#inline-vote-settings').hide();
-        $("#inline-vote-settings").removeClass('popup-show');
-        $('#close_confirm').hide();
-        $('#close_confirm').removeClass('popup-show');
-    });
-
-    $('#inline-vote-form').off('submit');
-
-    $('#cancel-vote').on('click', function () {
-        $('#inline-vote-settings').hide();
-        $("#inline-vote-settings").removeClass('popup-show');
-    });
-
-    $('#cancel-voting').on('click', function () {
-        $('#inline-vote-form').hide();
-        $("#inline-vote-form").removeClass('popup-show');
-    });
-
-    $('.close_popup').on('click', function (e) {
-        $(e.target).parent().hide();
-        $(e.target).parent().removeClass('popup-show');
-    });
-
-
-    $('#inline-vote-add-option').on('click', function () {
-        if ($('#vote-options-wrap .vote-option-input').length < 5) {
-            var itemIndex =$('#vote-options-wrap .vote-option-input').length + 1;
-            var optionInput = '<div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-' + itemIndex + '" name="vote-option-' + itemIndex + '"/><div class="remove-vote-option"></div></div>';
-            $('#vote-options-wrap').find(".option-wrap:last-child").before(optionInput);
-            $('.remove-vote-option').off();
-            $('.remove-vote-option').on('click', function () {
-                if ($('.remove-vote-option').length > 2) {
-                    $(this).parent().remove();
-                } else  {
-                    $(this).parent().find('input').val('');
-                }
-            });
-        }
-    });
-    $('.remove-vote-option').on('click', function () {
-        if ($('.remove-vote-option').length > 2) {
-            $(this).parent().remove();
-        } else  {
-            $(this).parent().find('input').val('');
-        }
-    });
-}
-
-exports.aceAttribsToClasses = function(hook, context){
-    if (context.key.indexOf('vote') === 0) {
-        return [context.key];
-    }
-}
-
-exports.aceAttribClasses = function(hook, attr){
-    return attr;
-}
-
-exports.aceEditEvent = function(hook, call) {
-    var cs = call.callstack;
-    if (cs.type !== 'idleWorkTimer') {
-        addVoteClickListeners();
-    }
-
-}
-
-var insertIcons = function (elem) {
-    var padOuter = $('iframe[name=ace_outer]').contents();
-    var padInner = padOuter.find('iframe[name="ace_inner"]');
-    var lineElem = $(elem).closest('.ace-line');
-    var paddingFrame = parseInt($(padInner).css('padding-top'));
-    var top = lineElem.find('.vote').get(0).offsetTop + parseInt($(lineElem.find('.vote').get(0)).css('padding-top')) + paddingFrame;
-    //check if container exists
-    var lineClass = 'vote-icons-line-'+lineElem.attr('id');
-    if (padOuter.find('#voteIcons').find('.vote-icons-line.'+lineClass).length === 0) {
-        padOuter.find('#voteIcons').append('<div class="vote-icons-line '+lineClass+'" style="top:' +top+ 'px;"></div>')
-    }
-    var voteId = '';
-
-    $.each($(elem)[0].classList, function (index, className) {
-        if (className.indexOf('vote-') > -1) {
-            voteId = className;
-        }
-    });
-    if (padOuter.find('#voteIcons').find('.'+lineClass).find('.vote-icon.'+voteId).length === 0)
-        padOuter.find('#voteIcons').find('.'+lineClass).append('<div class="vote-icon '+voteId+ '"></div>');
+  $('iframe[name=ace_outer]').contents().find('#sidediv').after('<div id="voteIcons"></div>');
+  // getPadOuter().find("#comments").addClass('with-icons');
 };
 
-exports.postAceInit = function () {
-    var padOuter = $('iframe[name=ace_outer]').contents();
-    var padInner = padOuter.find('iframe[name="ace_inner"]');
-    $(padInner).contents().find('.vote').each(function (key, elem) {
-       insertIcons(elem);
-    });
+const insertIcons = (elem) => {
+  const padOuter = $('iframe[name=ace_outer]').contents();
+  const padInner = padOuter.find('iframe[name="ace_inner"]');
+  const lineElem = $(elem).closest('.ace-line');
+  const paddingFrame = parseInt($(padInner).css('padding-top'));
+  const voteElemPadding = parseInt($(lineElem).find('.vote').first().css('padding-top'));
+  const top = $(lineElem).find('.vote').get(0).offsetTop + voteElemPadding + paddingFrame;
+  // check if container exists
+  const lineClass = `vote-icons-line-${lineElem.attr('id')}`;
+  if (padOuter.find('#voteIcons').find(`.vote-icons-line.${lineClass}`).length === 0) {
+    padOuter.find('#voteIcons').append(`<div
+      class="vote-icons-line ${lineClass}"
+      style="top:${top}px;"></div>`);
+  }
+  let voteId = '';
 
+  $.each($(elem)[0].classList, (index, className) => {
+    if (className.indexOf('vote-') > -1) {
+      voteId = className;
+    }
+  });
+  const lineItem = padOuter.find('#voteIcons').find(`.${lineClass}`);
+  if (lineItem.find(`.vote-icon.${voteId}`).length === 0) {
+    lineItem.append(`<div class="vote-icon ${voteId}"></div>`);
+  }
+};
+
+let createVote = function () {
+  const self = this;
+  const rep = self.rep;
+  const now = new Date().getTime();
+  const defaultOptionText = getSelectedText(rep);
+
+  $('#vote-description-area').val('');
+  $('#vote-description-area').attr('placeholder', html10n.get('ep_inline_voting.vote_title_label'));
+  const XY = getXYOffsetOfRep($('#inline-vote-settings'), rep);
+  $('#inline-vote-form').hide();
+  $('#inline-vote-form').removeClass('popup-show');
+  $('#close_confirm').hide();
+  $('#close_confirm').removeClass('popup-show');
+  drawAt($('#inline-vote-settings'), XY);
+
+  let itemCount = 0;
+  $('.vote-option-input').each((key, item) => {
+    itemCount++;
+    item.value = '';
+    if (itemCount > 2) {
+      item.remove();
+    }
+  });
+  $('#vote-option-1').val(defaultOptionText);
+  $('#start-vote').off();
+  $('#start-vote').on('click', () => {
+    const options = [];
+    const description = $('#vote-description-area').val() || '';
+    $('.vote-option-input').each((key, item) => {
+      if (item.value) {
+        options.push(item.value);
+      }
+    });
+    const voteId = `vote-${now}`; // Get more uniqueID
+    const voteData = {
+      voteId,
+      createdAt: now,
+      description,
+      options,
+      selectedText: defaultOptionText,
+      padId: clientVars.padId,
+      author: clientVars.userId,
+      closed: false,
+    };
+
+    if (options.length && options.length > 1) {
+      socket.emit('startVote', voteData, (err, data) => {
+        self.editorInfo.ace_callWithAce((ace) => {
+          ace.ace_performSelectionChange(rep.selStart, rep.selEnd, true);
+          ace.ace_setAttributeOnSelection(voteId, true);
+          ace.ace_setAttributeOnSelection('vote', true);
+          $('#inline-vote-settings').hide();
+          $('#inline-vote-settings').removeClass('popup-show');
+          const padOuter = $('iframe[name=ace_outer]').contents();
+          const elem = padOuter.find('iframe[name="ace_inner"]').contents().find(`.vote.${voteId}`);
+          insertIcons(elem);
+          addVoteClickListeners();
+        }, 'createNewVote', true);
+      });
+    }
+    $('#inline-vote-settings').hide();
     addVoteClickListeners();
-}
+  });
+};
+
+exports.aceInitialized = function (hook, context) {
+  createVote = _(createVote).bind(context);
+  closeVote = _(closeVote).bind(context);
+  isHeading = _(isHeading).bind(context);
+
+  insertIconContainer();
+  const padOuter = $('iframe[name=ace_outer]').contents();
+  const padInner = padOuter.find('iframe[name=ace_inner]').contents().find('body');
+  padInner.on('click', () => {
+    $('#inline-vote-form').hide();
+    $('#inline-vote-form').removeClass('popup-show');
+    $('#inline-vote-settings').hide();
+    $('#inline-vote-settings').removeClass('popup-show');
+    $('#close_confirm').hide();
+    $('#close_confirm').removeClass('popup-show');
+  });
+
+  $('#inline-vote-form').off('submit');
+
+  $('#cancel-vote').on('click', () => {
+    $('#inline-vote-settings').hide();
+    $('#inline-vote-settings').removeClass('popup-show');
+  });
+
+  $('#cancel-voting').on('click', () => {
+    $('#inline-vote-form').hide();
+    $('#inline-vote-form').removeClass('popup-show');
+  });
+
+  $('.close_popup').on('click', (e) => {
+    $(e.target).parent().hide();
+    $(e.target).parent().removeClass('popup-show');
+  });
+
+
+  $('#inline-vote-add-option').on('click', () => {
+    if ($('#vote-options-wrap .vote-option-input').length < 5) {
+      const itemIndex = $('#vote-options-wrap .vote-option-input').length + 1;
+      const optionInput = `<div class="option-wrap">
+      <input
+        class="vote-option-input"
+        type="text" id="vote-option-${itemIndex}"
+        name="vote-option-${itemIndex}"/>
+      <div class="remove-vote-option"></div>
+      </div>`;
+      $('#vote-options-wrap').find('.option-wrap:last-child').before(optionInput);
+      $('.remove-vote-option').off();
+      $('.remove-vote-option').on('click', function () {
+        if ($('.remove-vote-option').length > 2) {
+          $(this).parent().remove();
+        } else {
+          $(this).parent().find('input').val('');
+        }
+      });
+    }
+  });
+  $('.remove-vote-option').on('click', function () {
+    if ($('.remove-vote-option').length > 2) {
+      $(this).parent().remove();
+    } else {
+      $(this).parent().find('input').val('');
+    }
+  });
+};
+
+exports.aceAttribsToClasses = (hook, context) => {
+  if (context.key.indexOf('vote') === 0) {
+    return [context.key];
+  }
+};
+
+exports.aceEditEvent = (hook, call) => {
+  const cs = call.callstack;
+  if (cs.type !== 'idleWorkTimer') {
+    addVoteClickListeners();
+  }
+};
+
+exports.postAceInit = () => {
+  const padOuter = $('iframe[name=ace_outer]').contents();
+  const padInner = padOuter.find('iframe[name="ace_inner"]');
+  $(padInner).contents().find('.vote').each((key, elem) => {
+    insertIcons(elem);
+  });
+
+  addVoteClickListeners();
+};
+
+exports.aceEditorCSS = () => cssFiles;
+exports.postToolbarInit = (hookName, args) => {
+  const editbar = args.toolbar;
+
+  editbar.registerCommand('createVote', () => {
+    createVote();
+    addVoteClickListeners();
+  });
+};

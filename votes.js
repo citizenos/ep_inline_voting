@@ -1,30 +1,20 @@
+'use strict';
 
-var voteManager = require('./voteManager');
-var padManager = require("ep_etherpad-lite/node/db/PadManager");
-var ERR = require("ep_etherpad-lite/node_modules/async-stacktrace");
+const voteManager = require('./voteManager');
+const ERR = require('ep_etherpad-lite/node_modules/async-stacktrace');
 
-function padExists(padID){
-  padManager.doesPadExists(padID, function(err, exists){
-    return exists;
-  });
-}
+exports.getPadVotes = (padID, callback) => {
+  voteManager.getVotes(padID, (err, padVotes) => {
+    if (ERR(err, callback)) return;
 
-exports.getPadVotes = function(padID, callback)
-{
-    voteManager.getVotes(padID, function (err, padVotes)
-  {
-    if(ERR(err, callback)) return;
-
-    if(padVotes !== null) callback(null, padVotes);
+    if (padVotes != null) callback(null, padVotes);
   });
 };
 
-exports.bulkAddPadVotes = function(padID, data, callback)
-{
-  voteManager.bulkAddVotes(padID, data, function (err, voteIDs, votes)
-  {
-    if(ERR(err, callback)) return;
+exports.bulkAddPadVotes = (padID, data, callback) => {
+  voteManager.bulkAddVotes(padID, data, (err, voteIDs, votes) => {
+    if (ERR(err, callback)) return;
 
-    if(voteIDs !== null) callback(null, voteIDs, votes);
+    if (voteIDs != null) callback(null, voteIDs, votes);
   });
 };
