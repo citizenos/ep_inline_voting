@@ -1,119 +1,124 @@
-<div id="inline-vote-settings" class="popup popup-content">
-    <h1 id="inline-vote-title" data-l10n-id="ep_inline_voting.title_create_voting">Create a mini-vote</h1>
-    <div class="close_popup"></div>
-    <div id="settings-content">
-        <div id="vote-description-wrap"><textarea id="vote-description-area" rows="1" name="vote-description" data-l10n-id="ep_inline_voting.voting_title_label" data-l10n-args='{"placeholder": "ep_inline_voting.voting_title_label"}'></textarea></div>
-        <div id="vote-options-wrap">
-            <h2 id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.define_vote_options">Define vote options</h2>
-            <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-1" name="vote-option-1"/><div class="remove-vote-option"></div></div>
-            <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-2" name="vote-option-2"/><div class="remove-vote-option"></div></div>
-            <div id="add-vote-options-wrap" class="option-wrap">
-                <a id="inline-vote-add-option"><span class="oval">+</span><span data-l10n-id="ep_inline_voting.add_option">Add another vote option</span></a>
+<div id="inline-vote-settings" class="popup">
+    <div class="popup-content">
+        <h1 id="inline-vote-title" data-l10n-id="ep_inline_voting.title_create_voting">Create a mini-vote</h1>
+        <div class="close_popup"></div>
+        <div id="settings-content">
+            <div id="vote-description-wrap"><textarea id="vote-description-area" rows="1" name="vote-description" data-l10n-id="ep_inline_voting.voting_title_label" data-l10n-args='{"placeholder": "ep_inline_voting.voting_title_label"}'></textarea></div>
+            <div id="vote-options-wrap">
+                <h2 id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.define_vote_options">Define vote options</h2>
+                <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-1" name="vote-option-1"/><div class="remove-vote-option"></div></div>
+                <div class="option-wrap"><input class="vote-option-input" type="text" id="vote-option-2" name="vote-option-2"/><div class="remove-vote-option"></div></div>
+                <div id="add-vote-options-wrap" class="option-wrap">
+                    <a id="inline-vote-add-option"><span class="oval">+</span><span data-l10n-id="ep_inline_voting.add_option">Add another vote option</span></a>
+                </div>
             </div>
-        </div>
 
-        <div id="vote-settings-buttons-wrap">
-            <button id="cancel-vote" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
-            <button id="start-vote" class="btn-primary" data-l10n-id="ep_inline_voting.start_vote">Start Vote</button>
+            <div id="vote-settings-buttons-wrap">
+                <button id="cancel-vote" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
+                <button id="start-vote" class="btn-primary" data-l10n-id="ep_inline_voting.start_vote">Start Vote</button>
+            </div>
         </div>
     </div>
 </div>
 <!--Form with options-->
-<div id="inline-vote-form" class="popup popup-content">
-    <h1 id="inline-vote-title" data-l10n-id="ep_inline_voting.title_voting">Mini-vote</h1>
-    <div class="close_popup"></div>
-    <div id="inline-vote-description-wrap">
-        <div id="inline-vote-description">
-            <p id="description-creator">
-                <span id="creator-name">Danaerys Targaryen</span><span class="vertical-line">|</span><span id="create-time">16/10/2019</span> | <span id="vote-count" data-l10n-id="ep_inline_voting.total_votes" data-l10n-args='{ "count": "0"}'>10 votes</span>
-            </p>
-            <p id="description-content">
-                Description content
-            </p>
-        </div>
-    </div>
-    <div id="settings-content">
-        <div id="vote-description-wrap"><div id="vote-description-content"></div></div>
-        <div id="vote-options-wrap">
-            <h2 id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.vote_options">Vote options</h2>
-            <div id="vote-options-list">
-                <p class="option-wrap">
-                    <div class="option-result-bar-wrap">
-                        <label class="container">
-                            <input class="vote-option-radio" type="radio" name="vote-option">
-                            <span class="checkmark"></span>
-                            <div class="option-result-bar">
-                                <div class="option-result-fill">
-                                    <div class="option-result-votes">10</div>
-                                </div>
-                            </div>
-                        </label>
-                    <div class="option-value">Option 1</div>
-                    </div>
+<div id="inline-vote-form" class="popup">
+    <div class="popup-content">
+        <h1 id="inline-vote-title" data-l10n-id="ep_inline_voting.title_voting">Mini-vote</h1>
+        <div class="close_popup"></div>
+        <div id="inline-vote-description-wrap">
+            <div id="inline-vote-description">
+                <p id="description-creator">
+                    <span id="creator-name">Danaerys Targaryen</span><span class="vertical-line">|</span><span id="create-time">16/10/2019</span> | <span id="vote-count" data-l10n-id="ep_inline_voting.total_votes" data-l10n-args='{ "count": "0"}'>10 votes</span>
                 </p>
-                <p class="option-wrap">
-                    <div class="option-result-bar-wrap">
-                        <label class="container">
-                            <input class="vote-option-radio" type="radio" name="vote-option">
-                            <span class="checkmark"></span>
-                            <div class="option-result-bar"><div class="option-result-fill"><div class="option-result-votes">10</div></div></div>
-                        </label>
-                        <div class="option-value">Option 2</div>
-                    </div>
+                <p id="description-content">
+                    Description content
                 </p>
             </div>
         </div>
-        <div id="vote-form-buttons-wrap">
-            <button id="cancel-voting" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
-            <button id="close-vote" class="btn-default" data-l10n-id="ep_inline_voting.close_vote">Close Vote</button>
-            <button id="save-vote" class="btn-primary" data-l10n-id="ep_inline_voting.save">Vote</button>
+        <div id="settings-content">
+            <div id="vote-description-wrap"><div id="vote-description-content"></div></div>
+            <div id="vote-options-wrap">
+                <h2 id="vote-options-wrap-title" data-l10n-id="ep_inline_voting.vote_options">Vote options</h2>
+                <div id="vote-options-list">
+                    <p class="option-wrap">
+                        <div class="option-result-bar-wrap">
+                            <label class="container">
+                                <input class="vote-option-radio" type="radio" name="vote-option">
+                                <span class="checkmark"></span>
+                                <div class="option-result-bar">
+                                    <div class="option-result-fill">
+                                        <div class="option-result-votes">10</div>
+                                    </div>
+                                </div>
+                            </label>
+                        <div class="option-value">Option 1</div>
+                        </div>
+                    </p>
+                    <p class="option-wrap">
+                        <div class="option-result-bar-wrap">
+                            <label class="container">
+                                <input class="vote-option-radio" type="radio" name="vote-option">
+                                <span class="checkmark"></span>
+                                <div class="option-result-bar"><div class="option-result-fill"><div class="option-result-votes">10</div></div></div>
+                            </label>
+                            <div class="option-value">Option 2</div>
+                        </div>
+                    </p>
+                </div>
+            </div>
+            <div id="vote-form-buttons-wrap">
+                <button id="cancel-voting" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
+                <button id="close-vote" class="btn-default" data-l10n-id="ep_inline_voting.close_vote">Close Vote</button>
+                <button id="save-vote" class="btn-primary" data-l10n-id="ep_inline_voting.save">Vote</button>
+            </div>
         </div>
     </div>
 </div>
 
 
 <!-- LIGHTBOX SKELETON -->
-<div id="close_confirm" class="popup popup-content">
-    <div class="close_confirm_content">
-        <div class="header">
-            <h2 class="delete_title" data-l10n-id="ep_inline_voting.overwrite_the_selection">Do you want to overwrite the selection?</h2>
-            <p class="delete_description" data-l10n-id="ep_inline_voting.use_winning_option_as_replacement">Use the winning vote as a replacement for the selected text.</p>
+<div id="close_confirm" class="popup">
+    <div class="popup-content">
+        <div class="close_confirm_content">
+            <div class="header">
+                <h2 class="delete_title" data-l10n-id="ep_inline_voting.overwrite_the_selection">Do you want to overwrite the selection?</h2>
+                <p class="delete_description" data-l10n-id="ep_inline_voting.use_winning_option_as_replacement">Use the winning vote as a replacement for the selected text.</p>
 
-            <div id="lightbox_close" click="closeThisDialog()">
-                <div class="table_cell">
-                    <div class="sprite sprite-btn-popup-close2x">
+                <div id="lightbox_close" click="closeThisDialog()">
+                    <div class="table_cell">
+                        <div class="sprite sprite-btn-popup-close2x">
+                        </div>
                     </div>
                 </div>
+
+            </div>
+
+            <div id="delete_info_wrap">
+                <div class="delete_info_text_wrap">
+                    <div class="delete_info">
+                        <div class="delete_info_text">
+                            <h4 data-l10n-id="ep_inline_voting.original">Original: </h4>
+                            <p id="vote_selected_text">Default</p></div>
+                    </div>
+
+                    <div class="delete_info">
+                        <div class="delete_info_text">
+                            <h4 data-l10n-id="ep_inline_voting.replacement">Replacement </h4>
+                            <p id="vote_winner_text">A preselected option adopted by a computer program or other mechanism when no alternative is specified by the user or programmer </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="delete_info_button_wrap">
+                    <button id="vote_button_keep" class="btn-default" data-l10n-id="ep_inline_voting.no_keep_the_original">NO, KEEP THE ORIGINAL</button>
+                    <button id="vote_button_replace" class="btn-primary" data-l10n-id="ep_inline_voting.yes_overwrite">YES, OVERWRITE</button>
+                </div>
+
             </div>
 
         </div>
 
-        <div id="delete_info_wrap">
-            <div class="delete_info_text_wrap">
-                <div class="delete_info">
-                    <div class="delete_info_text">
-                        <h4 data-l10n-id="ep_inline_voting.original">Original: </h4>
-                        <p id="vote_selected_text">Default</p></div>
-                </div>
-
-                <div class="delete_info">
-                    <div class="delete_info_text">
-                        <h4 data-l10n-id="ep_inline_voting.replacement">Replacement </h4>
-                        <p id="vote_winner_text">A preselected option adopted by a computer program or other mechanism when no alternative is specified by the user or programmer </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="delete_info_button_wrap">
-                <button id="vote_button_keep" class="btn-default" data-l10n-id="ep_inline_voting.no_keep_the_original">NO, KEEP THE ORIGINAL</button>
-                <button id="vote_button_replace" class="btn-primary" data-l10n-id="ep_inline_voting.yes_overwrite">YES, OVERWRITE</button>
-            </div>
-
-        </div>
-
+        <div class="close_popup"></div>
     </div>
-
-    <div class="close_popup"></div>
-
 </div>
 
