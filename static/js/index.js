@@ -59,74 +59,46 @@ const cloneLine = (line) => {
 
   const lineElem = $(line.lineNode);
   const lineClone = lineElem.clone();
-  const innerdocbodyMargin = $(lineElem).parent().css('margin-left') || 0;
+  const innerOffset = $(padInner).offset().left;
+  const innerPadding = parseInt(padInner.css('padding-left') + lineElem.offset().left);
+  const innerdocbodyMargin = innerOffset + innerPadding || 0;
   padInner.contents().find('body').append(lineClone);
   lineClone.css({position: 'absolute'});
   lineClone.css(lineElem.offset());
-  lineClone.css({color: 'red'});
   lineClone.css({left: innerdocbodyMargin});
   lineClone.width(lineElem.width());
 
   return lineClone;
 };
+
 // Given a rep we get the X and Y px offset
-const getXYOffsetOfRep = (element, rep) => {
-  const viewPosition = 'bottom';
-  let clone;
+const getXYOffsetOfRep = (rep) => {
   let selStart = rep.selStart;
   let selEnd = rep.selEnd;
-  let startIndex = 0;
-  let endIndex = 0;
-
   // make sure end is after start
   if (selStart[0] > selEnd[0] || (selStart[0] === selEnd[0] && selStart[1] > selEnd[1])) {
-    const startPos = _.clone(selStart);
     selEnd = selStart;
-    selStart = startPos;
+    selStart = _.clone(selStart);
   }
 
-  const padOuter = $('iframe[name="ace_outer"]').contents();
-  const padInner = padOuter.find('iframe[name="ace_inner"]');
+  let startIndex = 0;
+  const endIndex = selEnd[1];
+  const lineIndex = selEnd[0];
+  if (selStart[0] === selEnd[0]) {
+    startIndex = selStart[1];
+  }
+
+  const padInner = $('iframe[name="ace_outer"]').contents().find('iframe[name="ace_inner"]');
 
   // Get the target Line
   const startLine = rep.lines.atIndex(selStart[0]);
   const endLine = rep.lines.atIndex(selEnd[0]);
-  const padInnerPadding = parseInt(padInner.css('padding-left'));
-  const padInnerOffset = $(padInner)[0].offsetLeft;
-
-  let leftOffset = padInnerOffset + $('iframe[name="ace_outer"]')[0].offsetLeft + padInnerPadding;
-  if ($(padInner)[0]) {
-    leftOffset += 3; // it appears on apple devices this might not be set properly?
-  }
-  // Add support for page view margins
-  let divMargin = $(startLine.lineNode).css('margin-left');
-  const innerdocbodyMargin = parseInt($(startLine.lineNode).parent().css('margin-left')) || 0;
-  let lineText = [];
-  let lineIndex = 0;
-
-  if (viewPosition === 'top') {
-    startIndex = selStart[1];
-    lineIndex = selStart[0];
-    lineText = Security.escapeHTML($(startLine.lineNode).text()).split('');
-    endIndex = lineText.length - 1;
-    clone = cloneLine(startLine);
-    if (selStart[0] === selEnd[0]) {
-      endIndex = selEnd[1];
-    }
-  } else {
-    endIndex = selEnd[1];
-    lineIndex = selEnd[0];
-    lineText = Security.escapeHTML($(endLine.lineNode).text()).split('');
-    clone = cloneLine(endLine);
-    if (selStart[0] === selEnd[0]) {
-      startIndex = selStart[1];
-    }
-  }
-
+  const clone = cloneLine(endLine);
+  let lineText = Security.escapeHTML($(endLine.lineNode).text()).split('');
   lineText.splice(endIndex, 0, '</span>');
   lineText.splice(startIndex, 0, '<span id="selectWorker">');
   lineText = lineText.join('');
-  const itemMargin = parseInt(element.children().css('margin-left'));
+
   const heading = isHeading(lineIndex);
   if (heading) {
     lineText = `<${heading}>${lineText}</${heading}>`;
@@ -137,36 +109,14 @@ const getXYOffsetOfRep = (element, rep) => {
   if ($(startLine.lineNode).length !== 0) {
     const worker = $(clone).find('#selectWorker');
     // A standard generic offset'
-    const workerOffset = worker.offset();
-    const workerW = $(worker).width();
-    const elemW = element.width();
-    let top = workerOffset.top + padInner.offset().top + parseInt(padInner.css('padding-top'));
-    let left = (workerOffset.left || 0) + leftOffset + itemMargin + workerW / 2 - elemW / 2;
-
+    let top = worker.offset().top + padInner.offset().top + parseInt(padInner.css('padding-top'));
+    let left = worker.offset().left;
     // adjust position
-    if (viewPosition === 'top') {
-      top -= element[0].offsetHeight;
-      if (top <= 0) { // If the tooltip wont be visible to the user because it's too high up
-        top += worker[0].offsetHeight;
-        if (top < 0) { top = 0; } // handle case where caret is in 0,0
-      }
-    } else if (viewPosition === 'bottom') {
-      top += worker[0].offsetHeight;
-    } else if (viewPosition === 'right') {
-      left = worker.offset().left + worker[0].offsetWidth + leftOffset + itemMargin;
-      top += (worker[0].offsetHeight / 2);
-    } else if (viewPosition === 'left') {
-      left = 0;
-      if (divMargin) {
-        divMargin = parseInt(divMargin);
-        if ((divMargin + innerdocbodyMargin) > 0) {
-          left += divMargin;
-        }
-      }
-      left -= worker.width();
-      top += (worker[0].offsetHeight / 2);
-    }
+    top += worker[0].offsetHeight;
 
+    if (left < 0) {
+      left = 0;
+    }
     // Remove the clone element
     $(clone).remove();
     return [left, top];
@@ -547,7 +497,7 @@ let createVote = function () {
 
   $('#vote-description-area').val('');
   $('#vote-description-area').attr('placeholder', html10n.get('ep_inline_voting.vote_title_label'));
-  const XY = getXYOffsetOfRep($('#inline-vote-settings'), rep);
+  const XY = getXYOffsetOfRep(rep);
   $('#inline-vote-form').hide();
   $('#inline-vote-form').removeClass('popup-show');
   $('#close_confirm').hide();
@@ -634,8 +584,8 @@ exports.aceInitialized = function (hook, context) {
   });
 
   $('.close_popup').on('click', (e) => {
-    $(e.target).parent().hide();
-    $(e.target).parent().removeClass('popup-show');
+    $(e.target).closest('.popup').hide();
+    $(e.target).closest('.popup').removeClass('popup-show');
   });
 
 

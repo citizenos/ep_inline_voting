@@ -117,3 +117,8 @@
 .option-result-bar-wrap .option-value, .option-result-bar-wrap .option-value-active, #vote-options-list .option-value {
     margin-left: 20px;
 }
+
+#inline-vote-settings, #inline-vote-form {
+    right: auto!important;
+    min-width: 500px;
+}
