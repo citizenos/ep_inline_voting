@@ -416,40 +416,25 @@ const handleVoteClose = (voteId, triger) => {
 };
 
 const getSelectedText = function (rep) {
-  const self = this;
-  const firstLine = rep.selStart[0];
   const lastLine = getLastLine(rep);
-  let selectedText = '';
   let posStart = 0;
   let posEnd = 0;
-  _(_.range(firstLine, lastLine + 1)).each((lineNumber) => {
-    const line = rep.lines.atIndex(lineNumber);
-    // If we span over multiple lines
-    if (rep.selStart[0] === lineNumber) {
-      // Is this the first line?
-      if (rep.selStart[1] > 0) {
-        posStart = rep.selStart[1];
-      }
-    }
-    if (rep.selEnd[0] === lineNumber) {
-      if (rep.selEnd[1] <= line.text.length) {
-        posEnd = rep.selEnd[1];
-      }
-    }
-    let lineText = line.text.substring(posStart, posEnd);
-    // When it has a selection with more than one line we select at least the beginning
-    // of the next line after the first line. As it is not possible to select the beginning
-    // of the first line, we skip it.
-    if (lineNumber > firstLine) {
-      // if the selection takes the very beginning of line, and the element has a lineMarker,
-      // it means we select the * as well, so we need to clean it from the text selected
-      lineText = self.cleanLine(line, lineText);
-      lineText = `\n${lineText}`;
-    }
-    selectedText += lineText;
-  });
 
-  return selectedText;
+  const line = rep.lines.atIndex(lastLine);
+
+  if (rep.selStart[0] === lastLine) {
+    // Is this the first line?
+    if (rep.selStart[1] > 0) {
+      posStart = rep.selStart[1];
+    }
+  }
+
+  if (rep.selEnd[0] === lastLine) {
+    if (rep.selEnd[1] <= line.text.length) {
+      posEnd = rep.selEnd[1];
+    }
+  }
+  return line.text.substring(posStart, posEnd);
 };
 
 // Indicates if Etherpad is configured to display icons
