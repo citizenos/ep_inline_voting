@@ -305,29 +305,34 @@ const addVoteClickListeners = () => {
   const voteClickListeners = (key, elem) => {
     $(elem).off();
     $(elem).on('click', (e) => {
-      $('#vote-form-buttons-wrap').show();
-      $('.vote-option-radio').attr('disabled', false);
-      const voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
-      $('#close-vote').off();
-      $('#close-vote').on('click', (e) => {
-        handleVoteClose(voteId, e);
-      });
-      $('#save-vote').off();
-      $('#save-vote').on('click', () => {
-        vote(voteId);
-      });
-      if (voteId) {
-        socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, (err, voteSettings) => {
-          if (err) {
-            return console.error(err);
-          }
-
-          if (voteSettings.closed) {
-            getVoteResult(voteId);
-          } else {
-            getVoteCount(voteId);
-          }
+      if ($('.popup').is(':visible') && $('.popup').hasClass('popup-show')) {
+        $('.popup').hide();
+        $('.popup').removeClass('popup-show');
+      } else {
+        $('#vote-form-buttons-wrap').show();
+        $('.vote-option-radio').attr('disabled', false);
+        const voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
+        $('#close-vote').off();
+        $('#close-vote').on('click', (e) => {
+          handleVoteClose(voteId, e);
         });
+        $('#save-vote').off();
+        $('#save-vote').on('click', () => {
+          vote(voteId);
+        });
+        if (voteId) {
+          socket.emit('getVoteSettings', {padId: clientVars.padId, voteId}, (err, voteSettings) => {
+            if (err) {
+              return console.error(err);
+            }
+
+            if (voteSettings.closed) {
+              getVoteResult(voteId);
+            } else {
+              getVoteCount(voteId);
+            }
+          });
+        }
       }
     });
   };
@@ -451,9 +456,8 @@ const insertIcons = (elem) => {
   const padOuter = $('iframe[name=ace_outer]').contents();
   const padInner = padOuter.find('iframe[name="ace_inner"]');
   const lineElem = $(elem).closest('.ace-line');
-  const paddingFrame = parseInt($(padInner).css('padding-top'));
-  const voteElemPadding = parseInt($(lineElem).find('.vote').first().css('padding-top'));
-  const top = $(lineElem).find('.vote').get(0).offsetTop + voteElemPadding + paddingFrame;
+  const firstLinePadding = $(lineElem).parent().children().get(0).offsetTop;
+  const top = $(lineElem).find('.vote').get(0).offsetTop - firstLinePadding;
   // check if container exists
   const lineClass = `vote-icons-line-${lineElem.attr('id')}`;
   if (padOuter.find('#voteIcons').find(`.vote-icons-line.${lineClass}`).length === 0) {
@@ -469,7 +473,7 @@ const insertIcons = (elem) => {
     }
   });
   const lineItem = padOuter.find('#voteIcons').find(`.${lineClass}`);
-  if (lineItem.find(`.vote-icon.${voteId}`).length === 0) {
+  if (padOuter.find('#voteIcons').find(`.vote-icon.${voteId}`).length === 0) {
     lineItem.append(`<div class="vote-icon ${voteId}"></div>`);
   }
 };
