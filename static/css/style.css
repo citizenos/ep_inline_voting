@@ -121,4 +121,14 @@
 #inline-vote-settings, #inline-vote-form {
     right: auto!important;
     min-width: 500px;
+    bottom: auto;
+}
+
+@media (max-width: 600px) {
+    #inline-vote-settings, #inline-vote-form {
+        right: auto!important;
+        min-width: auto;
+        bottom: auto;
+        width: 90%;
+    }
 }
