@@ -163,7 +163,7 @@ const vote = (voteId) => {
 const getDateTimeString = (timestamp) => {
   const d = new Date(timestamp);
 
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${d.getHours()}:${(`0${d.getMinutes()}`).substr(-2)}`;
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${d.getHours()}:${(`0${d.getMinutes()}`).substr(-2)}`; // eslint-disable-line max-len
 };
 
 const _getXY = (voteId) => {
@@ -420,7 +420,7 @@ const handleVoteClose = (voteId, triger) => {
   });
 };
 
-const getSelectedText = function (rep) {
+const getSelectedText = (rep) => {
   const lastLine = getLastLine(rep);
   let posStart = 0;
   let posEnd = 0;
@@ -454,7 +454,6 @@ const insertIconContainer = () => {
 
 const insertIcons = (elem) => {
   const padOuter = $('iframe[name=ace_outer]').contents();
-  const padInner = padOuter.find('iframe[name="ace_inner"]');
   const lineElem = $(elem).closest('.ace-line');
   const firstLinePadding = $(lineElem).parent().children().get(0).offsetTop;
   const top = $(lineElem).find('.vote').get(0).offsetTop - firstLinePadding;
@@ -543,10 +542,10 @@ let createVote = function () {
   });
 };
 
-exports.aceInitialized = function (hook, context) {
-  createVote = _(createVote).bind(context);
-  closeVote = _(closeVote).bind(context);
-  isHeading = _(isHeading).bind(context);
+exports.aceInitialized = (hook, context) => {
+  createVote = createVote.bind(context);
+  closeVote = closeVote.bind(context);
+  isHeading = isHeading.bind(context);
 
   insertIconContainer();
   const padOuter = $('iframe[name=ace_outer]').contents();
