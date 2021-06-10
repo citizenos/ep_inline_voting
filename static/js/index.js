@@ -129,7 +129,7 @@ const drawAt = (element, XY) => {
   const padInner = $('iframe[name="ace_outer"]').contents().find('iframe[name="ace_inner"]');
   const overRight = XY[0] + element.width() - padInner.width();
   if (overRight > 0) {
-    XY[0] =  XY[0] - overRight;
+    XY[0] -= overRight;
   }
   element.show();
   element.addClass('popup-show');
