@@ -117,6 +117,7 @@ const getXYOffsetOfRep = (rep) => {
     if (left < 0) {
       left = 0;
     }
+
     // Remove the clone element
     $(clone).remove();
     return [left, top];
@@ -125,6 +126,11 @@ const getXYOffsetOfRep = (rep) => {
 
 // Draws the toolbar onto the screen
 const drawAt = (element, XY) => {
+  const padInner = $('iframe[name="ace_outer"]').contents().find('iframe[name="ace_inner"]');
+  const overRight = XY[0] + element.width() - padInner.width();
+  if (overRight > 0) {
+    XY[0] =  XY[0] - overRight;
+  }
   element.show();
   element.addClass('popup-show');
   element.css({
