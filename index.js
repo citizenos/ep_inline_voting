@@ -3,10 +3,19 @@
 const eejs = require('ep_etherpad-lite/node/eejs/');
 const formidable = require('formidable');
 const voteManager = require('./voteManager');
-const votes = require('./votes');
 const apiUtils = require('./apiUtils');
 
 const voteOptions = [['Yes'], ['No']];
+
+exports.padRemove = async (hookName, context) => {
+  await voteManager.deleteVotes(context.padID);
+};
+
+exports.padCopy = async (hookName, context) => {
+  await Promise.all([
+    voteManager.copyVotes(context.originalPad.id, context.destinationID),
+  ]);
+};
 
 exports.padInitToolbar = (hookName, args) => {
   const toolbar = args.toolbar;
@@ -38,56 +47,69 @@ exports.socketio = (hookName, context, cb) => {
   context.io
       .of('/vote')
       .on('connection', (socket) => {
-        socket.on('startVote', (data, callback) => {
-          voteManager.startVote(data.padId, data, (err, result) => {
-            if (err) console.error('Error', err);
+        socket.on('startVote', async (data, callback) => {
+          try {
+            const result = await voteManager.startVote(data.padId, data);
             callback(null, result);
-          });
+          } catch (err) {
+            callback(err);
+          }
         });
 
-        socket.on('getVoteSettings', (data, callback) => {
+        socket.on('getVoteSettings', async (data, callback) => {
           const padId = data.padId;
           const voteId = data.voteId;
-          voteManager.getVote(padId, voteId, (err, data) => {
-            if (err) console.error('Error', err);
-            callback(null, data);
-          });
+          try {
+            const result = await voteManager.getVote(padId, voteId);
+            callback(null, result);
+          } catch (err) {
+            return callback(err);
+          }
         });
 
-        socket.on('getVoteResult', (data, callback) => {
+        socket.on('getVoteResult', async (data, callback) => {
           const padId = data.padId;
           socket.join(padId);
-          voteManager.getVoteResult(padId, data.voteId, (err, result) => {
-            if (err) console.error(err);
-            callback(err, result);
-          });
+          try {
+            const result = await voteManager.getVoteResult(padId, data.voteId);
+            callback(null, result);
+          } catch (err) {
+            callback(err);
+          }
         });
 
-        socket.on('getVoteCount', (data, callback) => {
+        socket.on('getVoteCount', async (data, callback) => {
           const padId = data.padId;
           socket.join(padId);
-          voteManager.getVoteCount(padId, data.voteId, data.authorID, (err, result) => {
-            if (err) console.error(err);
-            callback(err, result);
-          });
+          try {
+            const result = await voteManager.getVoteCount(padId, data.voteId, data.authorID);
+            callback(null, result);
+          } catch (err) {
+            return callback(err);
+          }
         });
 
-        socket.on('getVotes', (data, callback) => {
+        socket.on('getVotes', async (data, callback) => {
           const padId = data.padId;
           socket.join(padId);
-          voteManager.getVotes(padId, (err, votes) => {
-            callback(votes);
-          });
+          try {
+            const votes = await voteManager.getVotes(padId);
+            callback(null, votes);
+          } catch (err) {
+            callback(err);
+          }
         });
 
         // On add events
-        socket.on('addVote', (data, callback) => {
+        socket.on('addVote', async (data, callback) => {
           const padId = data.padId;
-          const content = data;
-          voteManager.addVote(padId, content, (err, votes) => {
-            socket.broadcast.to(padId).emit('pushAddVote', votes);
-            callback(err, votes);
-          });
+          try {
+            console.log('addVote data: ', data);
+            const votes = await voteManager.addVote(padId, data);
+            callback(null, votes);
+          } catch (err) {
+            callback(err);
+          }
         });
 
         // vote added via API
@@ -101,14 +123,16 @@ exports.socketio = (hookName, context, cb) => {
           }
         });
 
-        socket.on('updateVoteSettings', (data, callback) => {
+        socket.on('updateVoteSettings', async (data, callback) => {
           const padId = data.padId;
           const voteId = data.voteId;
           const settings = data.settings;
-          voteManager.updateVoteSettings(padId, voteId, settings, (err, vote) => {
-            if (err) console.error('Error', err);
-            callback(err, vote);
-          });
+          try {
+            const vote = await voteManager.updateVoteSettings(padId, voteId, settings);
+            callback(null, vote);
+          } catch (err) {
+            callback(err);
+          }
         });
       });
 
@@ -116,39 +140,40 @@ exports.socketio = (hookName, context, cb) => {
 };
 
 exports.expressCreateServer = (hookName, args, cb) => {
-  args.app.get('/p/:pad/:rev?/votes', (req, res) => {
+  args.app.get('/p/:pad/:rev?/votes', async (req, res) => {
     // check the api key
     //  if(!apiUtils.validateApiKey(fields, res)) return;
 
     // sanitize pad id before continuing
     const padIdReceived = apiUtils.sanitizePadId(req);
+    try {
+      const data = await voteManager.getPadVotes(padIdReceived);
 
-    votes.getPadVotes(padIdReceived, (err, data) => {
-      if (err) {
-        res.json({code: 2, message: 'internal error', data: null});
-      } else {
-        res.json({code: 0, data});
-      }
-    });
+      return res.json({code: 0, data});
+    } catch (err) {
+      return res.json({code: 2, message: 'internal error', data: null});
+    }
   });
 
   args.app.post('/p/:pad/:rev?/votes/:voteId?', (req, res) => {
-    new formidable.IncomingForm().parse(req, (err, fields, files) => {
+    new formidable.IncomingForm().parse(req, async (err, fields, files) => {
       // check the api key
       if (!apiUtils.validateApiKey(fields, res)) return;
 
       // check required fields from comment data
+      console.log(fields);
       if (!apiUtils.validateRequiredFields(fields, ['data'], res)) return;
 
       // sanitize pad id before continuing
       const padIdReceived = apiUtils.sanitizePadId(req);
-
+      console.log(padIdReceived);
       if (!req.params.voteId && fields.data.status === 'close') {
-        voteManager.closePadVotes(padIdReceived, (err, res) => {
-          if (err) res.json({error: err});
-          console.log(err, res);
+        try {
+          const res = await voteManager.closePadVotes(padIdReceived);
           res.json({done: res});
-        });
+        } catch (err) {
+          res.json({error: err});
+        }
       }
     });
   });

@@ -204,7 +204,7 @@ const getVoteCount = (voteId) => {
               $('#description-content').text(voteSettings.description);
 
               let itemHtml = '';
-              _.each(voteSettings.options, (option) => {
+              Object.entries(voteSettings.options).forEach(([key, option]) => {
                 let userVote = false;
                 if (result.userOption && result.userOption === option) {
                   userVote = true;

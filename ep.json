@@ -18,7 +18,9 @@
           "collectContentPre": "ep_inline_voting/static/js/shared",
           "eejsBlock_styles": "ep_inline_voting/index",
           "socketio": "ep_inline_voting/index",
-          "expressCreateServer": "ep_inline_voting/index"
+          "expressCreateServer": "ep_inline_voting/index",
+          "padCopy": "ep_inline_voting/index",
+          "padRemove": "ep_inline_voting/index"
         }
       }
     ]

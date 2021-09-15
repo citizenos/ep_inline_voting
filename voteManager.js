@@ -1,81 +1,73 @@
 'use strict';
 
 const _ = require('ep_etherpad-lite/static/js/underscore');
-const db = require('ep_etherpad-lite/node/db/DB').db;
-const ERR = require('ep_etherpad-lite/node_modules/async-stacktrace');
+const db = require('ep_etherpad-lite/node/db/DB');
 const readOnlyManager = require('ep_etherpad-lite/node/db/ReadOnlyManager.js');
 
 // Get Vote settings
-const getVote = (padId, voteId, callback) => {
-  db.get(`votes:${padId}:${voteId}`, (err, vote) => {
-    callback(err, vote);
-  });
+const getVote = async (padId, voteId) => {
+  let vote = await db.get(`votes:${padId}:${voteId}`);
+  if (vote == null) vote = {};
+  return vote;
 };
 
-const getVoteResult = (padId, voteId, callback) => {
-  db.get(`votes:${padId}:${voteId}result`, (err, result) => {
-    if (ERR(err, callback)) callback(err);
+const getVoteResult = async (padId, voteId) => {
+  let result = await db.get(`votes:${padId}:${voteId}result`);
+  if (result == null) result = {};
 
-    callback(null, result);
-  });
+  return result;
 };
 
-const getVoteCount = (padId, voteId, authorID, callback) => {
+const getVoteCount = async (padId, voteId, authorID) => {
   const returndata = {count: 0};
-  getVoteResult(padId, voteId, (err, result) => {
-    if (err) return callback(err);
-    if (!result) return callback(null, returndata);
-    _.each(Object.keys(result), (opt) => {
-      _.each(result[opt], (vote) => {
-        if (vote.author === authorID) {
-          returndata.userOption = opt;
-        }
-      });
-      returndata.count += result[opt].length;
-    });
 
-    return callback(null, returndata);
+  const voteResult = await getVoteResult(padId, voteId);
+
+  if (!voteResult) return voteResult;
+  Object.keys(voteResult).forEach((opt) => {
+    Object.entries(voteResult[opt]).forEach(([key, vote]) => {
+      if (vote.author === authorID) {
+        returndata.userOption = opt;
+      }
+    });
+    returndata.count += voteResult[opt].length;
   });
+
+  return returndata;
 };
 
 // Start new vote, store it's settings and options
-exports.startVote = (padId, data, callback) => {
+exports.startVote = async (padId, data) => {
   const voteId = data.voteId;
 
-  db.get(`votes:${padId}`, (err, votes) => {
-    if (ERR(err, callback)) return;
-    // comment does not exists
-    if (votes == null) votes = [];
-    votes.push(data.voteId);
-    db.set(`votes:${padId}`, votes); // Store all pad voteIds in one array
-  });
+  let votes = await db.get(`votes:${padId}`);
+  // comment does not exists
+  if (votes == null) votes = [];
+  votes.push(data.voteId);
+  await db.set(`votes:${padId}`, votes); // Store all pad voteIds in one array
 
-  db.set(`votes:${padId}:${voteId}`, data);
+  await db.set(`votes:${padId}:${voteId}`, data);
   data.dbKey = `votes:${padId}:${voteId}`;
-  callback(null, data);
+
+  return data;
 };
 
-const updateVoteSettings = (padId, voteId, settings, callback) => {
-  db.get(`votes:${padId}:${voteId}`, (err, vote) => {
-    if (err) return callback(err);
-    if (!vote) return callback(`No vote found at: 'votes:${padId}:${voteId}`);
-    const allowedFields = ['replace', 'closed'];
-    allowedFields.forEach((field) => {
-      vote[field] = settings[field];
-    });
+const updateVoteSettings = async (padId, voteId, settings) => {
+  const vote = await db.get(`votes:${padId}:${voteId}`);
+  if (!vote) return `No vote found at: 'votes:${padId}:${voteId}`;
 
-    db.set(`votes:${padId}:${voteId}`, vote);
-
-    callback(null, vote);
+  const allowedFields = ['replace', 'closed'];
+  allowedFields.forEach((field) => {
+    vote[field] = settings[field];
   });
+
+  await db.set(`votes:${padId}:${voteId}`, vote);
+
+  return vote;
 };
 
-// Return vote settings data
-exports.getVote = (padId, voteId, callback) => {
-  getVote(padId, voteId, callback);
-};
 // Return all topic votes data
-const getVotes = (padId, callback) => {
+const getVotes = async (padId) => {
   // We need to change readOnly PadIds to Normal PadIds
   const isReadOnly = padId.indexOf('r.') === 0;
   if (isReadOnly) {
@@ -85,37 +77,54 @@ const getVotes = (padId, callback) => {
   }
 
   // get list of  all topic votes
-  db.get(`votes:${padId}`, (err, votes) => {
-    if (ERR(err, callback)) return console.error('Error', err);
+  let votes = await db.get(`votes:${padId}`);
 
-    const voteData = {};
-    let votesLoaded = 0;
-    if (votes == null) votes = [];
-    votes.forEach((voteId) => {
-      // get settings for every vote
-
-      getVote(padId, voteId, (err, vote) => {
-        if (err) throw err;
-
-        voteData[voteId] = vote;
-        votesLoaded++;
-
-        if (votes.length === votesLoaded) {
-          callback(null, {votes: voteData});
-        }
-      });
-    });
+  const voteData = {};
+  if (votes == null) votes = [];
+  votes.forEach(async (voteId) => {
+    // get settings for every vote
+    const vote = await getVote(padId, voteId);
+    voteData[voteId] = vote;
   });
+
+  return {votes: voteData};
+};
+
+exports.copyVotes = async (sourceID, destinationID) => {
+  const originalVotes = await db.get(`votes:${sourceID}`);
+  const idCopies = _.clone(originalVotes);
+  if (!originalVotes) return;
+  originalVotes.forEach(async (voteId) => {
+    // make sure we have different copies of the comment between pads
+    const vote = await db.get(`votes:${sourceID}:${voteId}`);
+    const copiedVote = _.clone(vote);
+    if (copiedVote.closed) delete copiedVote.closed;
+    copiedVote.createdAt = new Date().getTime();
+    // save the comments on new pad
+    await db.set(`votes:${destinationID}:${voteId}`, copiedVote);
+  });
+  await db.set(`votes:${destinationID}`, idCopies);
+};
+
+exports.deleteVotes = async (padId) => {
+  const votes = await db.get(`votes:${padId}`);
+  if (votes) {
+    votes.forEach(async (voteId) => {
+      exports.deleteVote(padId, voteId);
+      exports.deleteVoteResults(padId, voteId);
+    });
+  }
 };
 // Delete vote
-exports.deleteVote = (padId, voteId, callback) => {
-  db.remove(`votes:${padId}:${voteId}`, (err) => {
-    if (ERR(err, callback)) return console.error('Error', err);
-    callback(null);
-  });
+exports.deleteVote = async (padId, voteId) => {
+  await db.remove(`votes:${padId}:${voteId}`);
+};
+
+exports.deleteVoteResults = async (padId, voteId) => {
+  await db.remove(`votes:${padId}:${voteId}result`);
 };
 // Cast user vote
-exports.addVote = (padId, data, callback) => {
+exports.addVote = async (padId, data) => {
   // We need to change readOnly PadIds to Normal PadIds
   const isReadOnly = padId.indexOf('r.') === 0;
   if (isReadOnly) {
@@ -124,74 +133,60 @@ exports.addVote = (padId, data, callback) => {
     });
   }
   const voteId = data.voteId;
+  const authorId = data.author;
+  const option = data.value;
   // get the entry
-  getVote(padId, voteId, (err, vote) => {
-    if (ERR(err, callback)) return console.error('Error', err);
+  const vote = await getVote(padId, voteId);
 
-    if (!vote) return;
+  if (!vote) return;
 
-    if (vote.closed) {
-      return callback('Voting is closed!');
+  if (vote.closed) {
+    return 'Voting is closed!';
+  }
+
+  let result = await getVoteResult(padId, voteId);
+  if (!result || Object.keys(result).length === 0) {
+    result = {};
+    vote.options.forEach((option) => {
+      result[option] = [];
+    });
+  }
+
+  Object.keys(result).forEach((opt) => {
+    for (const [i, voteData] of Object.entries(result[opt])) {
+      if (voteData.author === authorId) {
+        result[opt].splice(i, 1);
+      }
     }
-
-    getVoteResult(padId, voteId, (err, result) => {
-      if (ERR(err, callback)) return;
-
-      if (!result) {
-        result = {};
-        vote.options.forEach((option) => {
-          result[option] = [];
-        });
-      }
-
-      const voteId = data.voteId;
-      const authorId = data.author;
-      const option = data.value;
-
-      _.each(Object.keys(result), (opt) => {
-        _.each(result[opt], (voteData, i) => {
-          if (voteData.author === authorId) {
-            result[opt].splice(i, 1);
-          }
-        });
-      });
-
-      if (result[option]) {
-        result[option].push({
-          author: data.author,
-          timestamp: parseInt(data.timestamp) || new Date().getTime(),
-        });
-        db.set(`votes:${padId}:${voteId}result`, result);
-        callback(null, result);
-      } else {
-        callback(`Invalid option:${option}`);
-      }
-    });
   });
+
+  if (result[option]) {
+    result[option].push({
+      author: data.author,
+      timestamp: parseInt(data.timestamp) || new Date().getTime(),
+    });
+
+    await db.set(`votes:${padId}:${voteId}result`, result);
+    return result;
+  } else {
+    return `Invalid option:${option}`;
+  }
 };
 
-exports.closePadVotes = (padId, callback) => {
-  const errors = [];
+exports.closePadVotes = async (padId) => {
   const success = [];
-  getVotes(padId, (err, result) => {
-    if (err) return callback(err);
-    _.each(result.votes, (vote) => {
-      if (!vote.closed) {
-        updateVoteSettings(padId, vote.voteId, {closed: true}, (err, data) => {
-          if (err) {
-            errors.push(err);
-          } else {
-            success.push(data);
-          }
-        });
-      }
-    });
+  const result = await getVotes(padId);
+  Object.entries(result.votes).forEach(async ([key, vote]) => {
+    if (!vote.closed) {
+      const data = await updateVoteSettings(padId, vote.voteId, {closed: true});
+      success.push(data);
+    }
   });
-  if (!errors.length) return callback(null, success);
 
-  callback(errors, success);
+  return success;
 };
 
+exports.getVote = getVote;
 exports.getVotes = getVotes;
 exports.getVoteResult = getVoteResult;
 exports.getVoteCount = getVoteCount;
