@@ -134,6 +134,13 @@ exports.socketio = (hookName, context, cb) => {
             callback(err);
           }
         });
+
+        socket.on('deleteVote', async (data, callback) => {
+          const padId = data.padId;
+          const voteId = data.voteId;
+          await voteManager.deleteVote(padId, voteId);
+          callback(null, true);
+        });
       });
 
   return cb();
@@ -147,7 +154,7 @@ exports.expressCreateServer = (hookName, args, cb) => {
     // sanitize pad id before continuing
     const padIdReceived = apiUtils.sanitizePadId(req);
     try {
-      const data = await voteManager.getPadVotes(padIdReceived);
+      const data = await voteManager.getVotes(padIdReceived);
 
       return res.json({code: 0, data});
     } catch (err) {
@@ -161,12 +168,10 @@ exports.expressCreateServer = (hookName, args, cb) => {
       if (!apiUtils.validateApiKey(fields, res)) return;
 
       // check required fields from comment data
-      console.log(fields);
       if (!apiUtils.validateRequiredFields(fields, ['data'], res)) return;
 
       // sanitize pad id before continuing
       const padIdReceived = apiUtils.sanitizePadId(req);
-      console.log(padIdReceived);
       if (!req.params.voteId && fields.data.status === 'close') {
         try {
           const res = await voteManager.closePadVotes(padIdReceived);

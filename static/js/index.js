@@ -192,6 +192,7 @@ const getVoteCount = (voteId) => {
         padId: clientVars.padId,
         voteId, authorID: clientVars.userId,
       }, (err, voteSettings) => {
+        if (!Object.keys(voteSettings).length) return;
         socket.emit('getVoteCount',
             {
               padId: clientVars.padId,
@@ -270,7 +271,9 @@ const getVoteResult = (voteId) => {
           barLength = ((vcount / totalVotes * 100) || 1) + ((vcount / totalVotes) ? '%' : 'px');
           resultText = (vcount || 0);
           valueText = item;
-          $('#vote-form-buttons-wrap').hide();
+          $('#vote-form-buttons-wrap').children().each((k, item) => {
+            if ($(item).attr('id') !== 'delete-vote') $(item).hide();
+          });
         }
 
         itemHtml += `<div class="option-wrap">
@@ -316,11 +319,18 @@ const addVoteClickListeners = () => {
         $('.popup').removeClass('popup-show');
       } else {
         $('#vote-form-buttons-wrap').show();
+        $('#vote-form-buttons-wrap').children().each((k, item) => {
+          $(item).show();
+        });
         $('.vote-option-radio').attr('disabled', false);
         const voteId = e.currentTarget.classList.value.match(/(vote-[0-9]+)=?/g)[0];
         $('#close-vote').off();
         $('#close-vote').on('click', (e) => {
           handleVoteClose(voteId, e);
+        });
+        $('#delete-vote').off();
+        $('#delete-vote').on('click', (e) => {
+          handleVoteDelete(voteId, e);
         });
         $('#save-vote').off();
         $('#save-vote').on('click', () => {
@@ -423,6 +433,46 @@ const handleVoteClose = (voteId, triger) => {
         });
       }
     });
+  });
+};
+
+let deleteVote = function (padId, voteId) {
+  const padOuter = $('iframe[name=ace_outer]').contents();
+  const padInner = padOuter.find('iframe[name=ace_inner]').contents().find('body');
+  const editorInfo = this.editorInfo;
+
+  socket.emit('deleteVote', {padId: clientVars.padId, voteId}, (err, result) => {
+    const rep = editorInfo.ace_getRepFromSelector(`.${voteId}`, padInner);
+    editorInfo.ace_callWithAce((ace) => {
+      ace.ace_performSelectionChange(rep[0][0], rep[0][1], true);
+      ace.ace_setAttributeOnSelection('vote', false);
+      ace.ace_setAttributeOnSelection(voteId, false);
+    }, 'closeVote', true);
+
+    if (padOuter.find('#voteIcons').find(`.vote-icon.${voteId}`).length) {
+      padOuter.find('#voteIcons').find(`.vote-icon.${voteId}`).remove();
+    }
+  });
+};
+
+const handleVoteDelete = (voteId, triger) => {
+  const XY = [
+    $(triger.target).closest('.popup').offset().left,
+    $(triger.target).closest('.popup').offset().top,
+  ];
+
+  drawAt($('#delete_confirm'), XY);
+  $('#yes-delete').on('click', () => {
+    deleteVote(clientVars.padId, voteId);
+    $('#delete_confirm').hide();
+    $('#delete_confirm').removeClass('popup-show');
+    $('#inline-vote-form').hide();
+    $('#inline-vote-form').removeClass('popup-show');
+  });
+
+  $('#cancel-delete').on('click', () => {
+    $('#delete_confirm').hide();
+    $('#delete_confirm').removeClass('popup-show');
   });
 };
 
@@ -551,6 +601,7 @@ let createVote = function () {
 exports.aceInitialized = (hook, context) => {
   createVote = createVote.bind(context);
   closeVote = closeVote.bind(context);
+  deleteVote = deleteVote.bind(context);
   isHeading = isHeading.bind(context);
 
   insertIconContainer();

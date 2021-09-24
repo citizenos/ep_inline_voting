@@ -68,6 +68,7 @@
             </div>
             <div id="vote-form-buttons-wrap">
                 <button id="cancel-voting" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
+                <button id="delete-vote" class="btn-primary btn-red" data-l10n-id="ep_inline_voting.delete_vote">Delete Vote</button>
                 <button id="close-vote" class="btn-default" data-l10n-id="ep_inline_voting.close_vote">Close Vote</button>
                 <button id="save-vote" class="btn-primary" data-l10n-id="ep_inline_voting.save">Vote</button>
             </div>
@@ -122,3 +123,34 @@
     </div>
 </div>
 
+
+<!-- LIGHTBOX SKELETON -->
+<div id="delete_confirm" class="popup">
+    <div class="popup-content">
+        <div class="delete_confirm_content">
+            <div class="header">
+                <h2 class="delete_title" data-l10n-id="ep_inline_voting.delete_voting_title">Are you sure you wish to delete the vote?</h2>
+                <p class="delete_description" data-l10n-id="ep_inline_voting.warning_text">The voting and its results will be delted permanently!</p>
+
+                <div id="lightbox_close" click="closeThisDialog()">
+                    <div class="table_cell">
+                        <div class="sprite sprite-btn-popup-close2x">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="delete_info_wrap">
+                <div class="delete_info_button_wrap">
+                    <button id="cancel-delete" class="btn-default" data-l10n-id="ep_inline_voting.cancel">Cancel</button>
+                    <button id="yes-delete" class="btn-primary btn-red" data-l10n-id="ep_inline_voting.yes_delete">Yes, Delete</button>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="close_popup"></div>
+    </div>
+</div>

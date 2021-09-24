@@ -16,5 +16,8 @@
     "ep_inline_voting.replacement": "Replacement:",
     "ep_inline_voting.no_keep_the_original": "NO, KEEP THE ORIGINAL",
     "ep_inline_voting.yes_overwrite": "YES, OVERWRITE",
-    "ep_inline_voting.total_votes": "{{count}} votes"
+    "ep_inline_voting.total_votes": "{{count}} votes",
+    "ep_inline_voting.delete_voting_title": "Are you sure you wish to delete the vote?",
+    "ep_inline_voting.warning_text": "The voting and its results will be delted permanently!",
+    "ep_inline_voting.yes_delete": "YES, DELETE"
 }

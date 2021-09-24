@@ -95,34 +95,32 @@ exports.copyVotes = async (sourceID, destinationID) => {
   const idCopies = _.clone(originalVotes);
   if (!originalVotes) return;
   originalVotes.forEach(async (voteId) => {
-    // make sure we have different copies of the comment between pads
-    const vote = await db.get(`votes:${sourceID}:${voteId}`);
+    // make sure we have different copies of the vote between pads
+    const vote = await getVote(sourceID, voteId);
+    const voteResult = await getVoteResult(sourceID, voteId);
     const copiedVote = _.clone(vote);
-    if (copiedVote.closed) delete copiedVote.closed;
+    const copiedResult = _.clone(voteResult);
     copiedVote.createdAt = new Date().getTime();
-    // save the comments on new pad
+    // save the vote on new pad
     await db.set(`votes:${destinationID}:${voteId}`, copiedVote);
+    await db.set(`votes:${destinationID}:${voteId}result`, copiedResult);
   });
   await db.set(`votes:${destinationID}`, idCopies);
 };
 
-exports.deleteVotes = async (padId) => {
-  const votes = await db.get(`votes:${padId}`);
-  if (votes) {
-    votes.forEach(async (voteId) => {
-      exports.deleteVote(padId, voteId);
-      exports.deleteVoteResults(padId, voteId);
-    });
-  }
-};
-// Delete vote
-exports.deleteVote = async (padId, voteId) => {
-  await db.remove(`votes:${padId}:${voteId}`);
-};
-
-exports.deleteVoteResults = async (padId, voteId) => {
+const _deleteVoteResults = async (padId, voteId) => {
   await db.remove(`votes:${padId}:${voteId}result`);
 };
+
+const _deleteVote = async (padId, voteId) => {
+  await db.remove(`votes:${padId}:${voteId}`);
+  await _deleteVoteResults(padId, voteId);
+};
+
+// Delete vote
+exports.deleteVote = _deleteVote;
+exports.deleteVoteResults = _deleteVoteResults;
+
 // Cast user vote
 exports.addVote = async (padId, data) => {
   // We need to change readOnly PadIds to Normal PadIds
@@ -177,7 +175,7 @@ exports.closePadVotes = async (padId) => {
   const success = [];
   const result = await getVotes(padId);
   Object.entries(result.votes).forEach(async ([key, vote]) => {
-    if (!vote.closed) {
+    if (vote && !vote.closed) {
       const data = await updateVoteSettings(padId, vote.voteId, {closed: true});
       success.push(data);
     }
