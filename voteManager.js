@@ -121,6 +121,15 @@ const _deleteVote = async (padId, voteId) => {
 exports.deleteVote = _deleteVote;
 exports.deleteVoteResults = _deleteVoteResults;
 
+exports.deleteVotes = async (padId) => {
+  const votes = await db.get(`votes:${padId}`);
+  if (!votes) return;
+  votes.forEach(async (voteId) => {
+    await _deleteVoteResults(padId, voteId);
+    await _deleteVote(padId, voteId);
+  });
+};
+
 // Cast user vote
 exports.addVote = async (padId, data) => {
   // We need to change readOnly PadIds to Normal PadIds
